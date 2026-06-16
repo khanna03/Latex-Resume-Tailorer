@@ -53,6 +53,8 @@
           <div class="tabs" data-group="input-tabs">
             <button class="tab-btn active" data-tab="latex-tab">LaTeX Source</button>
             <button class="tab-btn" data-tab="jd-tab">Job Description</button>
+            <button class="tab-btn" data-tab="resume-structure-tab">Resume Structure</button>
+            <button class="tab-btn" data-tab="jd-intel-tab">JD Intelligence</button>
           </div>
         </div>
 
@@ -79,6 +81,28 @@
             <div class="editor-container full-height">
               <div class="editor-label">Paste Company Job Description</div>
               <textarea id="jd-input" class="jd-textarea" placeholder="Paste the full job description here. Include title, responsibilities, requirements, and company name for best results..."></textarea>
+            </div>
+          </div>
+
+          <!-- Resume Structure Tab -->
+          <div id="resume-structure-tab" class="tab-content">
+            <div id="resume-structure-panel" class="analysis-panel">
+              <div class="placeholder-msg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="watermark-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <p>Upload or paste a LaTeX resume, then click <strong>Parse Resume</strong> to see its section structure here.</p>
+                <button id="parse-resume-btn" class="secondary-btn btn-sm" style="margin-top:8px">Parse Resume</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- JD Intelligence Tab -->
+          <div id="jd-intel-tab" class="tab-content">
+            <div id="jd-intel-panel" class="analysis-panel">
+              <div class="placeholder-msg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="watermark-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <p>Paste a Job Description and click <strong>Analyze JD</strong> to see extracted skills, keywords, and requirements.</p>
+                <button id="analyze-jd-btn" class="secondary-btn btn-sm" style="margin-top:8px">Analyze JD</button>
+              </div>
             </div>
           </div>
         </div>
@@ -143,6 +167,7 @@
           <div class="tabs" data-group="output-tabs">
             <button class="tab-btn active" data-tab="diff-tab">Semantic Diff</button>
             <button class="tab-btn" data-tab="ats-tab">ATS Report</button>
+            <button class="tab-btn" data-tab="explainability-tab">Why Changed</button>
             <button class="tab-btn" data-tab="confidence-tab">Confidence</button>
             <button class="tab-btn" data-tab="candidates-tab">Candidates</button>
             <button class="tab-btn" data-tab="output-latex-tab">LaTeX</button>
@@ -217,6 +242,16 @@
               <div class="placeholder-msg">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="watermark-icon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                 <p>Detailed change log and AI explanations will appear here.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Explainability Tab -->
+          <div id="explainability-tab" class="tab-content">
+            <div id="explainability-panel" class="analysis-panel empty-state">
+              <div class="placeholder-msg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="watermark-icon"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <p>Run the pipeline to see why each modification was suggested, which keywords were added, and which JD requirements each change targets.</p>
               </div>
             </div>
           </div>

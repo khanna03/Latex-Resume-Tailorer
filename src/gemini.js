@@ -265,55 +265,7 @@ Respond with JSON:
   return await callGemini(apiKey, model, prompt, true);
 }
 
-// ---------------------------------------------------------------------------
-// Stage: Embedding-based Semantic Similarity (Gemini Embeddings API)
-// ---------------------------------------------------------------------------
-
-/**
- * Compute a text embedding using Gemini text-embedding-004.
- * Used for semantic similarity matching between resume content and JD.
- *
- * @param {string} apiKey
- * @param {string} text
- * @returns {Promise<number[]>} Embedding vector
- */
-export async function computeEmbedding(apiKey, text) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'models/text-embedding-004',
-      content: { parts: [{ text }] },
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `Embedding API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.embedding?.values || [];
-}
-
-/**
- * Compute cosine similarity between two embedding vectors.
- * @param {number[]} a
- * @param {number[]} b
- * @returns {number} -1 to 1
- */
-export function cosineSimilarity(a, b) {
-  if (!a.length || !b.length || a.length !== b.length) return 0;
-  let dot = 0, normA = 0, normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-}
+// Removed semantic embeddings (Phase 1 scope)
 
 // ---------------------------------------------------------------------------
 // Legacy exports (kept for backwards compatibility)

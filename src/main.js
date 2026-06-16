@@ -17,7 +17,7 @@ import { pdfToLatex } from './gemini.js';
  * 9. Render semantic diff + ATS + confidence + feedback
  */
 
-import { analyzeJobDescription, tailorResumeAST, repairLatex, computeEmbedding, cosineSimilarity } from './gemini.js';
+import { analyzeJobDescription, tailorResumeAST, repairLatex } from './gemini.js';
 // pdfToLatex imported at top
 import { parseLatex, astToTextSummary, getSectionNames, latexToPlainText } from './latex-parser.js';
 import { computeATSScore, compareATSReports } from './ats-engine.js';
@@ -28,6 +28,9 @@ import { rankCandidates, pickBest } from './ranking-pipeline.js';
 import { saveVersion, listVersions, loadVersion, deleteVersion, clearAllVersions, formatTimestamp } from './version-history.js';
 import { submitFeedback, exportDatasetBlob, getFeedbackCount } from './feedback-store.js';
 import { escapeHtml } from './diff-helper.js';
+import { normaliseJDAnalysis, renderJDIntelligenceHTML } from './jd-engine.js';
+import { renderResumeStructure } from './resume-viewer.js';
+import { renderExplainabilityPanel } from './explainability.js';
 
 // ---------------------------------------------------------------------------
 // State
@@ -53,7 +56,7 @@ const state = {
   currentMode: 'moderate',     // 'conservative' | 'moderate' | 'aggressive'
   currentSessionId: null,
   feedbackSubmitted: false,
-  semanticSimilarity: null,
+  // Phase 1: no semantic similarity (no embeddings)
 };
 
 // ---------------------------------------------------------------------------
@@ -117,11 +120,18 @@ const el = {
   atsPanel: $('ats-panel'),
   confidencePanel: $('confidence-panel'),
   candidatesPanel: $('candidates-panel'),
+  explainabilityPanel: $('explainability-panel'),
   copyBtn: $('copy-btn'),
   downloadBtn: $('download-btn'),
   validationBadge: $('validation-badge'),
   validationBadgeText: $q('#validation-badge .validation-msg'),
   validationBadgeBullet: $q('#validation-badge .status-bullet'),
+
+  // Phase 1 input-side panels
+  resumeStructurePanel: $('resume-structure-panel'),
+  jdIntelPanel: $('jd-intel-panel'),
+  parseResumeBtn: $('parse-resume-btn'),
+  analyzeJdBtn: $('analyze-jd-btn'),
 
   // Feedback widget
   feedbackWidget: $('feedback-widget'),
@@ -201,6 +211,12 @@ function setupEventListeners() {
   // Main action
   el.tailorBtn.addEventListener('click', handleTailorAction);
 
+  // Phase 1: standalone Parse Resume button
+  el.parseResumeBtn?.addEventListener('click', handleParseResume);
+
+  // Phase 1: standalone Analyze JD button
+  el.analyzeJdBtn?.addEventListener('click', handleAnalyzeJD);
+
   // Output actions
   el.copyBtn.addEventListener('click', copyToClipboard);
   el.downloadBtn.addEventListener('click', downloadTexFile);
@@ -215,6 +231,41 @@ function setupEventListeners() {
     btn.addEventListener('mouseleave', () => highlightStars(state._starRating || 0));
   });
   el.submitFeedbackBtn?.addEventListener('click', handleFeedbackSubmit);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 1 standalone handlers
+// ---------------------------------------------------------------------------
+function handleParseResume() {
+  const originalLatex = el.latexInputTextarea.value.trim();
+  if (!originalLatex) { alert('Please enter or upload your LaTeX resume first.'); return; }
+  const ast = parseLatex(originalLatex);
+  state.originalAst = ast;
+  if (el.resumeStructurePanel) {
+    el.resumeStructurePanel.innerHTML = renderResumeStructure(ast, state.protectedSections);
+  }
+}
+
+async function handleAnalyzeJD() {
+  const jobDescription = el.jdInputTextarea.value.trim();
+  if (!jobDescription) { alert('Please paste a job description first.'); return; }
+  if (!state.apiKey) { alert('API Key required.'); openSettings(); return; }
+
+  if (el.jdIntelPanel) el.jdIntelPanel.innerHTML = '<div class="placeholder-msg"><p>Analyzing Job Description...</p></div>';
+  try {
+    const jdRaw = await analyzeJobDescription(state.apiKey, state.model, jobDescription);
+    const jdAnalysis = normaliseJDAnalysis(jdRaw);
+    state.jdAnalysis = jdAnalysis;
+    renderJDIntelPanel(jdAnalysis);
+  } catch (err) {
+    if (el.jdIntelPanel) el.jdIntelPanel.innerHTML = `<div class="placeholder-msg"><p class="text-error">Analysis failed: ${escapeHtml(err.message)}</p></div>`;
+  }
+}
+
+function renderJDIntelPanel(jdAnalysis) {
+  if (el.jdIntelPanel && jdAnalysis) {
+    el.jdIntelPanel.innerHTML = renderJDIntelligenceHTML(jdAnalysis);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -492,28 +543,20 @@ async function handleTailorAction() {
 
     // === Stage 2: Analyze JD ===
     setStageStatus('stage-jd', 'running');
-    const jdAnalysis = await analyzeJobDescription(state.apiKey, state.model, jobDescription);
+    const jdRaw = await analyzeJobDescription(state.apiKey, state.model, jobDescription);
+    const jdAnalysis = normaliseJDAnalysis(jdRaw);
     state.jdAnalysis = jdAnalysis;
+    renderJDIntelPanel(jdAnalysis);
     setStageStatus('stage-jd', 'done');
 
     // === Stage 3: ATS Pre-score ===
     setStageStatus('stage-ats-pre', 'running');
     const resumePlainText = latexToPlainText(originalLatex);
     state.atsReportBefore = computeATSScore(resumePlainText, jdAnalysis);
+    renderPreRunATSGap(state.atsReportBefore, jdAnalysis);
     setStageStatus('stage-ats-pre', 'done');
 
-    // Compute semantic similarity (embeddings)
-    let similarity = null;
-    try {
-      const [resumeEmbed, jdEmbed] = await Promise.all([
-        computeEmbedding(state.apiKey, resumePlainText.substring(0, 3000)),
-        computeEmbedding(state.apiKey, jobDescription.substring(0, 3000)),
-      ]);
-      similarity = cosineSimilarity(resumeEmbed, jdEmbed);
-      state.semanticSimilarity = similarity;
-    } catch {
-      // Embedding failure is non-fatal
-    }
+    // NOTE: Phase 1 — no semantic similarity (no embeddings)
 
     // === Stage 4: Multi-Generation ===
     setStageStatus('stage-generate', 'running');
@@ -651,20 +694,29 @@ function renderResults(originalLatex) {
   // 4. ATS panel
   renderATSPanel();
 
-  // 5. Confidence + explainability report
+  // 5. Explainability panel (Phase 1 — Why Changed tab)
+  renderExplainPanel();
+
+  // 6. Confidence + improvements report
   renderConfidencePanel();
 
-  // 6. Candidate ranking (multi-gen mode)
+  // 7. Candidate ranking (multi-gen mode)
   renderCandidatesPanel();
 
-  // 7. Explanation log
+  // 8. Explanation log
   renderExplanationLog();
 
-  // 8. Feedback widget
+  // 9. Feedback widget
   showFeedbackWidget();
 
   // Auto-switch to diff tab
   $q('[data-tab="diff-tab"]')?.click();
+}
+
+function renderExplainPanel() {
+  if (!el.explainabilityPanel) return;
+  el.explainabilityPanel.innerHTML = renderExplainabilityPanel(state.changesLog, state.jdAnalysis, state.atsReportBefore, state.atsReportAfter);
+  el.explainabilityPanel.classList.remove('empty-state');
 }
 
 function renderValidationBadge() {
@@ -690,10 +742,7 @@ function renderATSPanel() {
   const delta = after.score - before.score;
   const jd = state.jdAnalysis;
 
-  const simPct = state.semanticSimilarity !== null
-    ? Math.round(state.semanticSimilarity * 100)
-    : null;
-
+  el.atsPanel.className = 'analysis-panel ats-score-section';
   el.atsPanel.innerHTML = `
     <div class="ats-score-section">
       <div class="ats-gauge-row">
@@ -717,11 +766,6 @@ function renderATSPanel() {
           ${renderCoverageBar('ATS Keywords', after.atsCoverage, after.foundAtsKeywords.length, (jd?.ats_keywords || []).length)}
           ${renderCoverageBar('Preferred Skills', after.preferredCoverage, after.foundPreferred.length, (jd?.preferred_skills || []).length)}
           ${renderCoverageBar('Soft Skills', after.softCoverage, after.foundSoft.length, (jd?.soft_skills || []).length)}
-          ${simPct !== null ? `<div class="coverage-bar-row">
-            <span class="cov-label">Semantic Similarity</span>
-            <div class="cov-bar-track"><div class="cov-bar-fill" style="width:${simPct}%;background:var(--accent-purple)"></div></div>
-            <span class="cov-pct">${simPct}%</span>
-          </div>` : ''}
         </div>
       </div>
 
@@ -746,6 +790,47 @@ function renderATSPanel() {
           <div class="kw-section-title">🎯 Top Skill Gaps to Address</div>
           <div class="kw-chips gap">
             ${after.skillGaps.map((k, i) => `<span class="kw-chip gap">#${i+1} ${escapeHtml(k)}</span>`).join('')}
+          </div>
+        </div>` : ''}
+    </div>
+  `;
+}
+
+function renderPreRunATSGap(atsReport, jd) {
+  if (!el.atsPanel) return;
+  const missing = atsReport.missingRequired || [];
+  const found   = atsReport.foundRequired  || [];
+
+  el.atsPanel.className = 'analysis-panel';
+  el.atsPanel.innerHTML = `
+    <div class="pre-run-gap">
+      <div class="pre-run-gap-header">
+        <span class="pre-gap-label">Current Resume Coverage</span>
+        <span class="pre-gap-score" style="color:${scoreColor(atsReport.score)}">${atsReport.score}%</span>
+      </div>
+      <p class="pre-gap-subtitle">Analysed before tailoring — gaps the pipeline will target:</p>
+
+      ${missing.length > 0 ? `
+        <div class="ats-keywords-section">
+          <div class="kw-section-title">❌ Missing Required Skills (${missing.length})</div>
+          <div class="kw-chips">
+            ${missing.map(k => `<span class="kw-chip missing">${escapeHtml(k)}</span>`).join('')}
+          </div>
+        </div>` : ''}
+
+      ${found.length > 0 ? `
+        <div class="ats-keywords-section">
+          <div class="kw-section-title">✓ Already Covered (${found.length})</div>
+          <div class="kw-chips">
+            ${found.map(k => `<span class="kw-chip found">${escapeHtml(k)}</span>`).join('')}
+          </div>
+        </div>` : ''}
+
+      ${(atsReport.missingAtsKeywords || []).length > 0 ? `
+        <div class="ats-keywords-section">
+          <div class="kw-section-title">⚡ Missing ATS Keywords</div>
+          <div class="kw-chips">
+            ${(atsReport.missingAtsKeywords || []).slice(0,10).map(k => `<span class="kw-chip gap">${escapeHtml(k)}</span>`).join('')}
           </div>
         </div>` : ''}
     </div>
