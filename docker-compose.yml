@@ -1,0 +1,54 @@
+# ==============================================================================
+# LaTeX Resume Tailorer — Docker Compose Multi-Container Orchestration
+# ==============================================================================
+# Coordinates our application services:
+# 1. 'db': PostgreSQL database using 'ankane/pgvector' preloaded image.
+# 2. 'web': FastAPI backend python server.
+# ==============================================================================
+
+version: '3.8'
+
+services:
+  # Database Service
+  db:
+    image: ankane/pgvector:latest
+    container_name: resume_tailorer_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: resume_tailorer
+    ports:
+      # Map PostgreSQL port to the host
+      - "5432:5432"
+    volumes:
+      # Persistent storage volume so DB data is saved when containers stop
+      - postgres_data:/var/lib/postgresql/data
+
+  # FastAPI Web Application Service
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resume_tailorer_api
+    restart: always
+    environment:
+      # Connects using the container name 'db' as hostname
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/resume_tailorer"
+      # Inherits from the host environment or a local '.env' file
+      GEMINI_API_KEY: "${GEMINI_API_KEY}"
+      JWT_SECRET_KEY: "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+    ports:
+      # Map FastAPI port to the host
+      - "8000:8000"
+    volumes:
+      # Mount host Docker socket (Docker-out-of-Docker).
+      # Allows our FastAPI app container to request the host's Docker daemon
+      # to spin up the Tectonic compiler container safely isolated next to it.
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - db
+
+volumes:
+  # PostgreSQL volume definition
+  postgres_data:

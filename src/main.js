@@ -1,36 +1,34 @@
 import './style.css';
 import { extractTextFromPDF } from './pdf-parser.js';
-import { pdfToLatex } from './gemini.js';
+import {
+  uploadResume,
+  getResumes,
+  getResumeDetail,
+  analyzeJD,
+  runTailoringPipeline,
+  submitFeedback,
+  exportMLDataset,
+  compileLaTeX,
+  isAuthenticated,
+  loginUser,
+  registerUser,
+  getVersionHistory,
+  getVersionDetail
+} from './api.js';
 
-/**
- * Curricula AI — Hybrid AI + ML Pipeline Orchestrator
- * 
- * Pipeline stages:
- * 1. Parse LaTeX → AST
- * 2. Analyze JD → intelligence
- * 3. Compute ATS pre-score
- * 4. Apply protected section masks
- * 5. Multi-generation (3 parallel or single)
- * 6. Rank candidates
- * 7. Reconstruct LaTeX from best candidate
- * 8. Deterministic validate → repair loop → re-validate
- * 9. Render semantic diff + ATS + confidence + feedback
- */
-
-import { analyzeJobDescription, tailorResumeAST, repairLatex } from './gemini.js';
-// pdfToLatex imported at top
 import { parseLatex, astToTextSummary, getSectionNames, latexToPlainText } from './latex-parser.js';
 import { computeATSScore, compareATSReports } from './ats-engine.js';
-import { reconstructLatex, buildModificationMap } from './reconstruction-engine.js';
+import { reconstructLatex, buildModificationMap, validateLockedSections } from './reconstruction-engine.js';
 import { validateLatexDeterministic, formatErrorsForRepair } from './latex-validator.js';
 import { computeSemanticDiff, renderSemanticDiffHtml } from './semantic-diff.js';
 import { rankCandidates, pickBest } from './ranking-pipeline.js';
-import { saveVersion, listVersions, loadVersion, deleteVersion, clearAllVersions, formatTimestamp } from './version-history.js';
-import { submitFeedback, exportDatasetBlob, getFeedbackCount } from './feedback-store.js';
+import { formatTimestamp } from './version-history.js';
 import { escapeHtml } from './diff-helper.js';
 import { normaliseJDAnalysis, renderJDIntelligenceHTML } from './jd-engine.js';
 import { renderResumeStructure } from './resume-viewer.js';
 import { renderExplainabilityPanel } from './explainability.js';
+import { checkFabrication } from './fabrication-check.js';
+
 
 // ---------------------------------------------------------------------------
 // State
@@ -56,7 +54,8 @@ const state = {
   currentMode: 'moderate',     // 'conservative' | 'moderate' | 'aggressive'
   currentSessionId: null,
   feedbackSubmitted: false,
-  // Phase 1: no semantic similarity (no embeddings)
+  fabricationFlags: [],         // flagged entities from fabrication check
+  revertedLockedSections: [],  // section IDs reverted due to lock violation
 };
 
 // ---------------------------------------------------------------------------
@@ -146,16 +145,32 @@ const el = {
 // ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
-function init() {
-  if (state.apiKey) {
-    el.apiKeyInput.value = state.apiKey;
-    updateStatusBadge('ready');
+// ---------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------
+async function init() {
+  updateStatusBadge('processing', 'Connecting to backend...');
+  
+  if (!isAuthenticated()) {
+    try {
+      // Auto-authenticate default session
+      await loginUser('user@example.com', 'Password123');
+      updateStatusBadge('ready', 'Connected (user@example.com)');
+    } catch (err) {
+      try {
+        await registerUser('user@example.com', 'Password123');
+        await loginUser('user@example.com', 'Password123');
+        updateStatusBadge('ready', 'Connected (user@example.com)');
+      } catch (regErr) {
+        console.error('Auto-auth failed:', regErr);
+        updateStatusBadge('error', 'Auth Failed');
+      }
+    }
   } else {
-    updateStatusBadge('error', 'API Key Missing');
-    setTimeout(() => openSettings(), 800);
+    updateStatusBadge('ready', 'Connected');
   }
-  el.modelSelect.value = state.model;
 
+  el.modelSelect.value = state.model;
   setupEventListeners();
   updateFeedbackCount();
   renderProtectedChips();
@@ -181,8 +196,8 @@ function setupEventListeners() {
   el.closeHistoryBtn.addEventListener('click', closeHistory);
   el.historyDrawer.addEventListener('click', e => { if (e.target === el.historyDrawer) closeHistory(); });
   el.clearHistoryBtn.addEventListener('click', () => {
-    clearAllVersions();
-    renderHistoryList();
+    // History is managed in backend database
+    alert('Clear history operation is disabled in multi-user DB mode.');
   });
 
   // Tabs
@@ -211,15 +226,15 @@ function setupEventListeners() {
   // Main action
   el.tailorBtn.addEventListener('click', handleTailorAction);
 
-  // Phase 1: standalone Parse Resume button
+  // Parse Resume button
   el.parseResumeBtn?.addEventListener('click', handleParseResume);
 
-  // Phase 1: standalone Analyze JD button
+  // Analyze JD button
   el.analyzeJdBtn?.addEventListener('click', handleAnalyzeJD);
 
   // Output actions
   el.copyBtn.addEventListener('click', copyToClipboard);
-  el.downloadBtn.addEventListener('click', downloadTexFile);
+  el.downloadBtn.addEventListener('click', downloadPdfFile); // Changed to PDF compile & download
   el.exportDatasetBtn?.addEventListener('click', exportDataset);
 
   // Feedback
@@ -234,27 +249,37 @@ function setupEventListeners() {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 1 standalone handlers
+// Standalone handlers
 // ---------------------------------------------------------------------------
-function handleParseResume() {
+async function handleParseResume() {
   const originalLatex = el.latexInputTextarea.value.trim();
   if (!originalLatex) { alert('Please enter or upload your LaTeX resume first.'); return; }
-  const ast = parseLatex(originalLatex);
-  state.originalAst = ast;
-  if (el.resumeStructurePanel) {
-    el.resumeStructurePanel.innerHTML = renderResumeStructure(ast, state.protectedSections);
+  
+  if (el.resumeStructurePanel) el.resumeStructurePanel.innerHTML = '<div class="placeholder-msg"><p>Parsing LaTeX...</p></div>';
+  try {
+    const file = new Blob([originalLatex], { type: 'text/plain' });
+    const resume = await uploadResume(file, 'Pasted Resume');
+    state.resumeId = resume.id;
+    state.originalAst = resume.parsed_ast;
+    state.latexInput = resume.raw_latex;
+    
+    if (el.resumeStructurePanel) {
+      el.resumeStructurePanel.innerHTML = renderResumeStructure(resume.parsed_ast, state.protectedSections);
+    }
+  } catch (err) {
+    if (el.resumeStructurePanel) {
+      el.resumeStructurePanel.innerHTML = `<div class="placeholder-msg"><p class="text-error">Parse failed: ${escapeHtml(err.message)}</p></div>`;
+    }
   }
 }
 
 async function handleAnalyzeJD() {
   const jobDescription = el.jdInputTextarea.value.trim();
   if (!jobDescription) { alert('Please paste a job description first.'); return; }
-  if (!state.apiKey) { alert('API Key required.'); openSettings(); return; }
 
   if (el.jdIntelPanel) el.jdIntelPanel.innerHTML = '<div class="placeholder-msg"><p>Analyzing Job Description...</p></div>';
   try {
-    const jdRaw = await analyzeJobDescription(state.apiKey, state.model, jobDescription);
-    const jdAnalysis = normaliseJDAnalysis(jdRaw);
+    const jdAnalysis = await analyzeJD(jobDescription);
     state.jdAnalysis = jdAnalysis;
     renderJDIntelPanel(jdAnalysis);
   } catch (err) {
@@ -267,6 +292,7 @@ function renderJDIntelPanel(jdAnalysis) {
     el.jdIntelPanel.innerHTML = renderJDIntelligenceHTML(jdAnalysis);
   }
 }
+
 
 // ---------------------------------------------------------------------------
 // Tab handling
@@ -300,49 +326,26 @@ async function readFile(file) {
   }
 
   const dropText = el.dropZone.querySelector('.drop-text');
-
-  if (isTex) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      el.latexInputTextarea.value = e.target.result;
-      if (dropText) dropText.innerHTML = `Loaded: <strong>${escapeHtml(file.name)}</strong> (${(file.size / 1024).toFixed(1)} KB)`;
-      el.dropZone.style.borderColor = 'var(--accent-cyan)';
-    };
-    reader.readAsText(file);
-    return;
-  }
-
-  // PDF flow
-  if (!state.apiKey) {
-    alert('An API key is required to convert PDF resumes to LaTeX. Please add your Gemini API key in Settings first.');
-    openSettings();
-    return;
-  }
-
   el.dropZone.style.borderColor = 'var(--accent-yellow)';
-  if (dropText) dropText.innerHTML = `<span style="color:var(--accent-yellow)">⟳ Extracting text from PDF...</span>`;
+  if (dropText) dropText.innerHTML = `<span style="color:var(--accent-yellow)">⟳ Uploading and parsing ${isPDF ? 'PDF' : 'LaTeX'} resume...</span>`;
 
   try {
-    const extractedText = await extractTextFromPDF(file);
+    const resume = await uploadResume(file, file.name);
+    state.resumeId = resume.id;
+    state.originalAst = resume.parsed_ast;
+    state.latexInput = resume.raw_latex;
 
-    if (dropText) dropText.innerHTML = `<span style="color:var(--accent-blue)">⟳ Converting to LaTeX via AI...</span>`;
-
-    let latexResult = await pdfToLatex(state.apiKey, state.model, extractedText);
-
-    // Strip any markdown code fences the model might have added
-    latexResult = latexResult
-      .replace(/^```(?:latex|tex)?\s*/i, '')
-      .replace(/\s*```\s*$/, '')
-      .trim();
-
-    el.latexInputTextarea.value = latexResult;
+    el.latexInputTextarea.value = resume.raw_latex;
     el.dropZone.style.borderColor = 'var(--accent-cyan)';
-    if (dropText) dropText.innerHTML = `✓ PDF converted: <strong>${escapeHtml(file.name)}</strong> → LaTeX (${(file.size / 1024).toFixed(1)} KB)`;
+    if (dropText) dropText.innerHTML = `✓ Resume parsed: <strong>${escapeHtml(file.name)}</strong> (${(file.size / 1024).toFixed(1)} KB)`;
 
+    if (el.resumeStructurePanel) {
+      el.resumeStructurePanel.innerHTML = renderResumeStructure(resume.parsed_ast, state.protectedSections);
+    }
   } catch (err) {
-    console.error('PDF conversion failed:', err);
+    console.error('Resume upload/parse failed:', err);
     el.dropZone.style.borderColor = 'var(--accent-red)';
-    if (dropText) dropText.innerHTML = `<span style="color:var(--accent-red)">✕ PDF conversion failed: ${escapeHtml(err.message)}</span>`;
+    if (dropText) dropText.innerHTML = `<span style="color:var(--accent-red)">✕ Upload/parse failed: ${escapeHtml(err.message)}</span>`;
   }
 }
 
@@ -407,51 +410,77 @@ function openHistory() {
 
 function closeHistory() { el.historyDrawer.classList.add('hidden'); }
 
-function renderHistoryList() {
-  const versions = listVersions();
+async function renderHistoryList() {
   if (!el.historyList) return;
-  if (versions.length === 0) {
-    el.historyList.innerHTML = '<p class="history-empty">No saved sessions yet. Run the pipeline to create history entries.</p>';
-    return;
+  el.historyList.innerHTML = '<p class="history-empty">Loading history...</p>';
+
+  try {
+    const versions = await getVersionHistory();
+    if (versions.length === 0) {
+      el.historyList.innerHTML = '<p class="history-empty">No saved sessions yet. Run the pipeline to create history entries.</p>';
+      return;
+    }
+    
+    el.historyList.innerHTML = versions.map(v => {
+      const delta = Math.round(v.ats_score_after - v.ats_score_before);
+      const timestamp = new Date(v.created_at).getTime();
+      return `
+        <div class="history-entry" data-id="${v.id}">
+          <div class="history-entry-header">
+            <span class="history-job">${escapeHtml(v.job_title || 'Untitled Job')}</span>
+            <span class="history-mode history-mode-${v.mode}">${v.mode}</span>
+          </div>
+          <div class="history-entry-meta">
+            <span class="history-date">${formatTimestamp(timestamp)}</span>
+            <span class="history-score">ATS: ${Math.round(v.ats_score_before)}% → <strong>${Math.round(v.ats_score_after)}%</strong></span>
+            <span class="history-delta ${delta >= 0 ? 'positive' : 'negative'}">
+              ${delta >= 0 ? '+' : ''}${delta}pts
+            </span>
+          </div>
+          <div class="history-entry-actions">
+            <button class="flat-btn restore-btn" data-id="${v.id}">Restore</button>
+            <button class="flat-btn delete-btn" data-id="${v.id}">Delete</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    el.historyList.querySelectorAll('.restore-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          const entry = await getVersionDetail(btn.dataset.id);
+          if (entry) {
+            el.latexInputTextarea.value = entry.original_latex;
+            state.resumeId = entry.resume_id;
+            state.latexInput = entry.original_latex;
+            state.tailoredLatex = entry.tailored_latex;
+            el.latexOutputTextarea.value = entry.tailored_latex;
+            state.currentSessionId = entry.id;
+            state.selectedCandidateMode = entry.mode;
+            
+            // Clean up other states so we don't mix old runs
+            state.originalAst = null;
+            state.jdAnalysis = null;
+
+            closeHistory();
+            alert(`Restored session from ${formatTimestamp(new Date(entry.created_at).getTime())}. Click "Run Pipeline" to tailor it again.`);
+          }
+        } catch (err) {
+          console.error(err);
+          alert(`Failed to restore version: ${err.message}`);
+        }
+      });
+    });
+
+    el.historyList.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        alert('Individual history entry deletion is disabled in database mode.');
+      });
+    });
+  } catch (err) {
+    console.error('Failed to load version history:', err);
+    el.historyList.innerHTML = `<p class="history-empty text-error">Failed to load history: ${escapeHtml(err.message)}</p>`;
   }
-  el.historyList.innerHTML = versions.map(v => `
-    <div class="history-entry" data-id="${v.id}">
-      <div class="history-entry-header">
-        <span class="history-job">${escapeHtml(v.jobTitle || 'Untitled Job')}</span>
-        <span class="history-mode history-mode-${v.mode}">${v.mode}</span>
-      </div>
-      <div class="history-entry-meta">
-        <span class="history-date">${formatTimestamp(v.timestamp)}</span>
-        <span class="history-score">ATS: ${v.atsScoreBefore || 0}% → <strong>${v.atsScoreAfter || 0}%</strong></span>
-        <span class="history-delta ${(v.scoreDelta || 0) >= 0 ? 'positive' : 'negative'}">
-          ${(v.scoreDelta || 0) >= 0 ? '+' : ''}${v.scoreDelta || 0}pts
-        </span>
-      </div>
-      <div class="history-entry-actions">
-        <button class="flat-btn restore-btn" data-id="${v.id}">Restore</button>
-        <button class="flat-btn delete-btn" data-id="${v.id}">Delete</button>
-      </div>
-    </div>
-  `).join('');
-
-  el.historyList.querySelectorAll('.restore-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const entry = loadVersion(btn.dataset.id);
-      if (entry) {
-        el.latexInputTextarea.value = entry.originalLatex;
-        el.jdInputTextarea.value = entry.jobDescription;
-        closeHistory();
-        alert(`Restored session from ${formatTimestamp(entry.timestamp)}. Click "Run Pipeline" to re-process.`);
-      }
-    });
-  });
-
-  el.historyList.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      deleteVersion(btn.dataset.id);
-      renderHistoryList();
-    });
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -517,11 +546,6 @@ async function handleTailorAction() {
   const originalLatex = el.latexInputTextarea.value.trim();
   const jobDescription = el.jdInputTextarea.value.trim();
 
-  if (!state.apiKey) {
-    alert('Please set your Gemini API Key in the settings panel.');
-    openSettings();
-    return;
-  }
   if (!originalLatex) { alert('Please enter or upload your LaTeX resume.'); return; }
   if (!jobDescription) {
     alert('Please paste the target Job Description.');
@@ -537,116 +561,87 @@ async function handleTailorAction() {
   try {
     // === Stage 1: Parse LaTeX ===
     setStageStatus('stage-parse', 'running');
-    const ast = parseLatex(originalLatex);
-    state.originalAst = ast;
+    const currentLatex = el.latexInputTextarea.value.trim();
+    if (!state.resumeId || currentLatex !== state.latexInput) {
+      const file = new Blob([currentLatex], { type: 'text/plain' });
+      const resume = await uploadResume(file, 'Pasted/Edited Resume');
+      state.resumeId = resume.id;
+      state.originalAst = resume.parsed_ast;
+      state.latexInput = resume.raw_latex;
+      if (el.resumeStructurePanel) {
+        el.resumeStructurePanel.innerHTML = renderResumeStructure(resume.parsed_ast, state.protectedSections);
+      }
+    }
     setStageStatus('stage-parse', 'done');
 
     // === Stage 2: Analyze JD ===
     setStageStatus('stage-jd', 'running');
-    const jdRaw = await analyzeJobDescription(state.apiKey, state.model, jobDescription);
-    const jdAnalysis = normaliseJDAnalysis(jdRaw);
-    state.jdAnalysis = jdAnalysis;
-    renderJDIntelPanel(jdAnalysis);
+    if (!state.jdAnalysis || jobDescription !== state.jdInput) {
+      const jdAnalysis = await analyzeJD(jobDescription);
+      state.jdAnalysis = jdAnalysis;
+      state.jdInput = jobDescription;
+      renderJDIntelPanel(jdAnalysis);
+    }
     setStageStatus('stage-jd', 'done');
 
     // === Stage 3: ATS Pre-score ===
     setStageStatus('stage-ats-pre', 'running');
-    const resumePlainText = latexToPlainText(originalLatex);
-    state.atsReportBefore = computeATSScore(resumePlainText, jdAnalysis);
-    renderPreRunATSGap(state.atsReportBefore, jdAnalysis);
+    state.atsReportBefore = computeATSScore(latexToPlainText(originalLatex), state.jdAnalysis);
+    renderPreRunATSGap(state.atsReportBefore, state.jdAnalysis);
     setStageStatus('stage-ats-pre', 'done');
 
-    // NOTE: Phase 1 — no semantic similarity (no embeddings)
-
-    // === Stage 4: Multi-Generation ===
+    // === Stage 4, 5, 6, 7: Run Tailoring Pipeline on Backend ===
     setStageStatus('stage-generate', 'running');
-    const lockedSectionIds = getLockedSectionIds(ast);
-    const generationMode = el.generationModeSelect?.value || 'single';
-    const singleMode = el.tailorModeSelect?.value || 'moderate';
-
-    let candidates = [];
-
-    if (generationMode === 'multi') {
-      const modes = ['conservative', 'moderate', 'aggressive'];
-      const results = await Promise.allSettled(
-        modes.map(mode => tailorResumeAST(state.apiKey, state.model, ast, jdAnalysis, { mode }, lockedSectionIds))
-      );
-      results.forEach((result, i) => {
-        if (result.status === 'fulfilled' && result.value?.sections) {
-          const modMap = buildModificationMap(result.value.sections);
-          const reconstructed = reconstructLatex(ast, modMap, lockedSectionIds);
-          candidates.push({ mode: modes[i], latex: reconstructed, changes: result.value.changes || [] });
-        }
-      });
-      if (candidates.length === 0) throw new Error('All generation variants failed.');
-    } else {
-      const result = await tailorResumeAST(state.apiKey, state.model, ast, jdAnalysis, { mode: singleMode }, lockedSectionIds);
-      if (result?.sections) {
-        const modMap = buildModificationMap(result.sections);
-        const reconstructed = reconstructLatex(ast, modMap, lockedSectionIds);
-        candidates.push({ mode: singleMode, latex: reconstructed, changes: result.changes || [] });
-      } else {
-        throw new Error('AI returned invalid section data.');
-      }
-    }
-    state.candidates = candidates;
-    setStageStatus('stage-generate', 'done');
-
-    // === Stage 5: Rank Candidates ===
     setStageStatus('stage-rank', 'running');
-    const ranked = rankCandidates(originalLatex, candidates, jdAnalysis);
-    state.rankedCandidates = ranked;
-    const best = pickBest(ranked);
-    setStageStatus('stage-rank', 'done');
-
-    // === Stage 6: Reconstruct best ===
     setStageStatus('stage-reconstruct', 'running');
-    let tailoredLatex = best.latex;
-    state.changesLog = candidates.find(c => c.mode === best.mode)?.changes || [];
-    setStageStatus('stage-reconstruct', 'done');
-
-    // === Stage 7: Validate → Repair Loop ===
     setStageStatus('stage-validate', 'running');
-    updateStatusBadge('validating');
 
-    let validationResult = validateLatexDeterministic(tailoredLatex);
-    let repairAttempts = 0;
-    const MAX_REPAIRS = 2;
+    const mode = el.generationModeSelect?.value === 'multi' ? 'multi' : (el.tailorModeSelect?.value || 'moderate');
+    const lockedSectionIds = Array.from(getLockedSectionIds(state.originalAst));
 
-    while (!validationResult.valid && repairAttempts < MAX_REPAIRS) {
-      repairAttempts++;
-      const errorStr = formatErrorsForRepair(validationResult.errors);
-      const repairResult = await repairLatex(state.apiKey, state.model, tailoredLatex, errorStr);
-      tailoredLatex = repairResult.fixedLatex || tailoredLatex;
-      validationResult = validateLatexDeterministic(tailoredLatex);
-    }
+    const res = await runTailoringPipeline(
+      state.resumeId,
+      state.jdAnalysis,
+      { mode, customInstructions: el.customInstructionsInput?.value?.trim() || '' },
+      lockedSectionIds
+    );
 
-    state.tailoredLatex = tailoredLatex;
+    setStageStatus('stage-generate', 'done');
+    setStageStatus('stage-rank', 'done');
+    setStageStatus('stage-reconstruct', 'done');
+    setStageStatus('stage-validate', 'done');
+
+    state.currentSessionId = res.version_id;
+    state.selectedCandidateMode = res.best_mode;
+    state.candidates = res.candidates.map(c => ({
+      mode: c.mode,
+      latex: c.latex,
+      changes: c.changes,
+      fabricationFlags: c.fabrication_flags,
+      revertedSections: c.reverted_sections,
+    }));
+
+    // Find the best candidate details
+    const bestCandidate = state.candidates.find(c => c.mode === res.best_mode) || state.candidates[0];
+    state.tailoredLatex = bestCandidate.latex;
+    state.changesLog = bestCandidate.changes;
+    state.fabricationFlags = bestCandidate.fabricationFlags;
+    state.revertedLockedSections = bestCandidate.revertedSections;
+
+    // Use deterministic validator locally for final UI report badge
+    const localVal = validateLatexDeterministic(state.tailoredLatex);
     state.validationReport = {
-      ...validationResult,
-      repairAttempts,
+      valid: localVal.valid,
+      errors: localVal.errors,
+      summary: localVal.summary,
+      repairAttempts: 0 // Server did the repair
     };
-    setStageStatus('stage-validate', validationResult.valid ? 'done' : 'error');
 
-    // === ATS Post-score ===
-    state.atsReportAfter = computeATSScore(latexToPlainText(tailoredLatex), jdAnalysis);
-
-    // === Save Version ===
-    const savedVersion = saveVersion({
-      jobTitle: jdAnalysis.role_title || 'Untitled Role',
-      originalLatex,
-      jobDescription,
-      tailoredLatex,
-      mode: best.mode,
-      atsScoreBefore: state.atsReportBefore.score,
-      atsScoreAfter: state.atsReportAfter.score,
-      scoreDelta: state.atsReportAfter.score - state.atsReportBefore.score,
-      changesCount: state.changesLog.length,
-    });
-    state.currentSessionId = savedVersion.id;
+    // Calculate post-scoring locally for detailed UI display
+    state.atsReportAfter = computeATSScore(latexToPlainText(state.tailoredLatex), state.jdAnalysis);
     state.feedbackSubmitted = false;
 
-    // === Render all output panels ===
+    // Render all outputs
     renderResults(originalLatex);
     updateStatusBadge('success', `ATS: ${state.atsReportBefore.score}% → ${state.atsReportAfter.score}%`);
 
@@ -657,7 +652,7 @@ async function handleTailorAction() {
       if (el2?.classList.contains('stage-running')) setStageStatus(s.id, 'error');
     });
     updateStatusBadge('error', 'Pipeline Failed');
-    alert(`Pipeline error: ${error.message}\n\nCheck your API key and network connection.`);
+    alert(`Pipeline error: ${error.message}\n\nCheck your backend server connection.`);
   } finally {
     setProcessingState(false);
   }
@@ -697,7 +692,7 @@ function renderResults(originalLatex) {
   // 5. Explainability panel (Phase 1 — Why Changed tab)
   renderExplainPanel();
 
-  // 6. Confidence + improvements report
+  // 6. Confidence + improvements report (with method note)
   renderConfidencePanel();
 
   // 7. Candidate ranking (multi-gen mode)
@@ -715,7 +710,14 @@ function renderResults(originalLatex) {
 
 function renderExplainPanel() {
   if (!el.explainabilityPanel) return;
-  el.explainabilityPanel.innerHTML = renderExplainabilityPanel(state.changesLog, state.jdAnalysis, state.atsReportBefore, state.atsReportAfter);
+  el.explainabilityPanel.innerHTML = renderExplainabilityPanel(
+    state.changesLog,
+    state.jdAnalysis,
+    state.atsReportBefore,
+    state.atsReportAfter,
+    state.fabricationFlags,
+    state.revertedLockedSections,
+  );
   el.explainabilityPanel.classList.remove('empty-state');
 }
 
@@ -755,8 +757,9 @@ function renderATSPanel() {
             <circle cx="60" cy="60" r="50" fill="none" stroke="${scoreColor(after.score)}" stroke-width="10"
               stroke-dasharray="${(after.score / 100) * 314.16} 314.16"
               stroke-dashoffset="78.54" stroke-linecap="round"/>
-            <text x="60" y="55" text-anchor="middle" fill="var(--text-primary)" font-size="22" font-weight="700">${after.score}</text>
-            <text x="60" y="72" text-anchor="middle" fill="var(--text-muted)" font-size="10">ATS Score</text>
+            <text x="60" y="50" text-anchor="middle" fill="var(--text-primary)" font-size="20" font-weight="700">${after.scoreMin}–${after.scoreMax}</text>
+            <text x="60" y="65" text-anchor="middle" fill="var(--text-muted)" font-size="9">est. ATS %</text>
+            <text x="60" y="77" text-anchor="middle" fill="var(--text-muted)" font-size="8">(midpoint ${after.score})</text>
           </svg>
           <div class="ats-delta ${delta >= 0 ? 'positive' : 'negative'}">${delta >= 0 ? '+' : ''}${delta} pts</div>
         </div>
@@ -792,6 +795,11 @@ function renderATSPanel() {
             ${after.skillGaps.map((k, i) => `<span class="kw-chip gap">#${i+1} ${escapeHtml(k)}</span>`).join('')}
           </div>
         </div>` : ''}
+
+      <div class="ats-method-note">
+        <span class="method-note-icon">ℹ</span>
+        <span class="method-note-text">${escapeHtml(after.methodNote)}</span>
+      </div>
     </div>
   `;
 }
@@ -806,7 +814,7 @@ function renderPreRunATSGap(atsReport, jd) {
     <div class="pre-run-gap">
       <div class="pre-run-gap-header">
         <span class="pre-gap-label">Current Resume Coverage</span>
-        <span class="pre-gap-score" style="color:${scoreColor(atsReport.score)}">${atsReport.score}%</span>
+        <span class="pre-gap-score" style="color:${scoreColor(atsReport.score)}">${atsReport.scoreMin}–${atsReport.scoreMax}%</span>
       </div>
       <p class="pre-gap-subtitle">Analysed before tailoring — gaps the pipeline will target:</p>
 
@@ -1085,55 +1093,69 @@ function highlightStars(upTo) {
   });
 }
 
-function handleFeedbackSubmit() {
+async function handleFeedbackSubmit() {
   if (!state.currentSessionId) return;
 
-  submitFeedback(
-    state.currentSessionId,
-    {
-      resume: el.latexInputTextarea.value,
-      jobDescription: el.jdInputTextarea.value,
-      generatedOutput: state.tailoredLatex,
-      mode: state.selectedCandidateMode || 'moderate',
-      atsScoreBefore: state.atsReportBefore?.score || 0,
-      atsScoreAfter: state.atsReportAfter?.score || 0,
-    },
-    {
-      thumbRating: _thumbRating,
-      starRating: _starRating || null,
-      userCorrection: el.correctionInput?.value?.trim() || '',
-    }
-  );
+  const stars = _starRating || 5;
+  const thumb = _thumbRating || 'up';
+  const comments = el.correctionInput?.value?.trim() || '';
 
   if (el.submitFeedbackBtn) el.submitFeedbackBtn.disabled = true;
-  state.feedbackSubmitted = true;
 
-  const successMsg = document.createElement('p');
-  successMsg.className = 'feedback-success';
-  successMsg.textContent = '✓ Feedback saved! Thank you.';
-  el.feedbackWidget?.appendChild(successMsg);
+  try {
+    await submitFeedback(state.currentSessionId, stars, thumb, comments);
 
-  updateFeedbackCount();
+    state.feedbackSubmitted = true;
+
+    // Increment local cached count
+    let count = parseInt(localStorage.getItem('curricula_feedback_count') || '0');
+    count++;
+    localStorage.setItem('curricula_feedback_count', count.toString());
+
+    const successMsg = document.createElement('p');
+    successMsg.className = 'feedback-success';
+    successMsg.textContent = '✓ Feedback saved! Thank you.';
+    el.feedbackWidget?.appendChild(successMsg);
+
+    updateFeedbackCount();
+  } catch (err) {
+    console.error('Feedback submission failed:', err);
+    alert(`Failed to submit feedback: ${err.message}`);
+    if (el.submitFeedbackBtn) el.submitFeedbackBtn.disabled = false;
+  }
 }
 
 function updateFeedbackCount() {
-  const count = getFeedbackCount();
+  const count = parseInt(localStorage.getItem('curricula_feedback_count') || '0');
   if (el.feedbackCount) el.feedbackCount.textContent = `${count} record${count !== 1 ? 's' : ''} stored`;
 }
 
 // ---------------------------------------------------------------------------
 // Dataset Export
 // ---------------------------------------------------------------------------
-function exportDataset() {
-  const blob = exportDatasetBlob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `curricula_dataset_${Date.now()}.jsonl`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+async function exportDataset() {
+  if (!el.exportDatasetBtn) return;
+  const originalText = el.exportDatasetBtn.innerHTML;
+  el.exportDatasetBtn.disabled = true;
+  el.exportDatasetBtn.innerHTML = '<span>⟳ Exporting...</span>';
+
+  try {
+    const datasetBlob = await exportMLDataset();
+    const url = URL.createObjectURL(datasetBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `curricula_dataset_${Date.now()}.jsonl`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Dataset export failed:', err);
+    alert(`Failed to export dataset: ${err.message}`);
+  } finally {
+    el.exportDatasetBtn.disabled = false;
+    el.exportDatasetBtn.innerHTML = originalText;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1153,17 +1175,30 @@ function copyToClipboard() {
   }).catch(() => alert('Copy failed. Please select the text manually.'));
 }
 
-function downloadTexFile() {
+async function downloadPdfFile() {
   if (!state.tailoredLatex) return;
-  const blob = new Blob([state.tailoredLatex], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'tailored_resume.tex';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+
+  const originalText = el.downloadBtn.innerHTML;
+  el.downloadBtn.disabled = true;
+  el.downloadBtn.innerHTML = '<span>⟳ Compiling PDF...</span>';
+
+  try {
+    const pdfBlob = await compileLaTeX(state.tailoredLatex);
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tailored_resume.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('PDF compilation failed:', err);
+    alert(`Failed to compile LaTeX to PDF: ${err.message}`);
+  } finally {
+    el.downloadBtn.disabled = false;
+    el.downloadBtn.innerHTML = originalText;
+  }
 }
 
 // ---------------------------------------------------------------------------
