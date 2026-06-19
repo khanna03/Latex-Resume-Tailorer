@@ -34,18 +34,21 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 # Password Hash Helpers
 # --------------------------------------------------------------------------
 
+import bcrypt
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Compares a plaintext password against a stored hash to confirm identity.
     Returns True if password is valid, False otherwise.
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def get_password_hash(password: str) -> str:
     """
     Encrypts a plaintext password string using bcrypt.
     """
-    return pwd_context.hash(password)
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 # --------------------------------------------------------------------------
 # JWT Creation & Verification Helpers

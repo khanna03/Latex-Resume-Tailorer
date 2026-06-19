@@ -28,8 +28,8 @@ services:
   # FastAPI Web Application Service
   web:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: resume_tailorer_api
     restart: always
     environment:

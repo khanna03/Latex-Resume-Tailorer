@@ -57,9 +57,11 @@ function detectAddedKeywords(oldText, newText, jdAnalysis) {
  * @param {import('./jd-engine.js').JDAnalysis} jdAnalysis
  * @param {object} atsReportBefore
  * @param {object} atsReportAfter
+ * @param {Array<{entity:string,type:string,context:string}>} [fabricationFlags=[]] - Flagged entities
+ * @param {string[]} [revertedSections=[]] - Section IDs that were auto-reverted due to lock violation
  * @returns {string} HTML
  */
-export function renderExplainabilityPanel(changesLog, jdAnalysis, atsReportBefore, atsReportAfter) {
+export function renderExplainabilityPanel(changesLog, jdAnalysis, atsReportBefore, atsReportAfter, fabricationFlags = [], revertedSections = []) {
   if (!changesLog || changesLog.length === 0) {
     return `<div class="placeholder-msg"><p>No changes were made in this tailoring run. Try a more aggressive mode or broaden your JD.</p></div>`;
   }
@@ -110,6 +112,57 @@ export function renderExplainabilityPanel(changesLog, jdAnalysis, atsReportBefor
       </div>
     </div>
   `;
+
+  // --- Fabrication flags (human review required) ---
+  if (fabricationFlags && fabricationFlags.length > 0) {
+    const byType = {};
+    fabricationFlags.forEach(f => { byType[f.type] = (byType[f.type] || []).concat(f); });
+    html += `
+      <div class="fabrication-flag-section">
+        <div class="fabrication-flag-header">
+          <span class="fabrication-flag-icon">⚠️</span>
+          <span class="fabrication-flag-title">Fabrication Review Required (${fabricationFlags.length} flag${fabricationFlags.length !== 1 ? 's' : ''})</span>
+        </div>
+        <p class="fabrication-flag-desc">These entities appear in the generated resume but were NOT found in your original. Please verify they are accurate before using this output.</p>
+        <div class="fabrication-flag-list">
+          ${fabricationFlags.map(f => `
+            <div class="fabrication-flag-card fab-type-${escapeHtml(f.type)}">
+              <span class="fab-entity">${escapeHtml(f.entity)}</span>
+              <span class="fab-type-badge">${escapeHtml(f.type.replace('_',' '))}</span>
+              ${f.context ? `<span class="fab-context">&ldquo;...${escapeHtml(f.context)}...&rdquo;</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  // --- Reverted locked sections notice ---
+  if (revertedSections && revertedSections.length > 0) {
+    html += `
+      <div class="reverted-sections-notice">
+        <span class="reverted-icon">🔒</span>
+        <span>Locked section${revertedSections.length !== 1 ? 's' : ''} auto-reverted (AI attempted to modify protected content): <strong>${revertedSections.join(', ')}</strong></span>
+      </div>
+    `;
+  }
+
+  // --- Genuine Gaps (the antidote to '100% accurate' framing) ---
+  const genuineGaps = atsReportAfter?.missingRequired || [];
+  if (genuineGaps.length > 0) {
+    html += `
+      <div class="genuine-gaps-section">
+        <div class="genuine-gaps-header">
+          <span class="genuine-gaps-icon">📊</span>
+          <span class="genuine-gaps-title">Genuine Gaps — Correctly Not Fabricated</span>
+        </div>
+        <p class="genuine-gaps-desc">These required skills were NOT in your original resume. The AI correctly did <strong>not</strong> invent them. Address these yourself to genuinely improve your match:</p>
+        <div class="genuine-gaps-chips">
+          ${genuineGaps.map(g => `<span class="kw-chip missing">${escapeHtml(g)}</span>`).join('')}
+        </div>
+      </div>
+    `;
+  }
 
   // Per-change cards
   html += `<div class="explain-changes-list">`;

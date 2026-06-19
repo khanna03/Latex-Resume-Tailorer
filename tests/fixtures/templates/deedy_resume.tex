@@ -1,0 +1,113 @@
+% Deedy Resume Template — Two-column style
+% Simplified for round-trip testing
+\documentclass[]{deedy-resume-openfont}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+
+\pagestyle{fancy}
+\fancyhf{}
+
+\begin{document}
+
+\namesection{Deedy}{Das}{
+  \urlstyle{same}\href{http://debarghyadas.com}{debarghyadas.com} | \href{mailto:dd367@cornell.edu}{dd367@cornell.edu}
+}
+
+\begin{minipage}[t]{0.33\textwidth}
+
+\section{Education}
+
+\subsection{Cornell University}
+\datedsubsection{MEng in Computer Science}{2014}
+\location{GPA: 3.83 / 4.0}
+
+\subsection{Cornell University}
+\datedsubsection{BS in Computer Science}{2013}
+\location{Magna Cum Laude}
+
+\sectionsep
+
+\section{Links}
+
+Github:// \href{https://github.com/deedydas}{\bf deedydas} \\
+LinkedIn:// \href{https://www.linkedin.com/in/debarghyadas}{\bf debarghyadas} \\
+
+\sectionsep
+
+\section{Coursework}
+
+\subsection{Graduate}
+\begin{itemize}
+  \item Advanced Machine Learning
+  \item Computer Vision
+  \item Natural Language Processing
+  \item Big Data Technologies
+\end{itemize}
+
+\subsection{Undergraduate}
+\begin{itemize}
+  \item Analysis of Algorithms
+  \item Operating Systems
+  \item Programming Languages
+  \item Compilers
+\end{itemize}
+
+\sectionsep
+
+\section{Skills}
+
+\subsection{Programming}
+\begin{itemize}
+  \item Python \textbullet{} Java \textbullet{} C++
+  \item JavaScript \textbullet{} Go \textbullet{} Scala
+  \item SQL \textbullet{} R \textbullet{} MATLAB
+\end{itemize}
+
+\subsection{Technologies}
+\begin{itemize}
+  \item TensorFlow \textbullet{} PyTorch
+  \item Kubernetes \textbullet{} Docker
+  \item AWS \textbullet{} GCP \textbullet{} Azure
+\end{itemize}
+
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.66\textwidth}
+
+\section{Experience}
+
+\runsubsection{Facebook}
+\datedsubsection{Software Engineer}{June 2014 - Present}
+\location{Menlo Park, CA}
+\vspace{\topsep}
+\begin{tightitemize}
+  \item Worked on the Feed ranking infrastructure serving 1.5 billion daily active users
+  \item Developed ML pipelines for content recommendation with 20\% CTR improvement
+  \item Reduced infrastructure costs by 15\% through efficient resource allocation
+  \item Collaborated with research team on novel ranking algorithms
+\end{tightitemize}
+
+\sectionsep
+
+\runsubsection{Quantcast}
+\datedsubsection{Data Engineer Intern}{Summer 2013}
+\location{San Francisco, CA}
+\begin{tightitemize}
+  \item Built real-time data pipeline processing 10 billion events per day using Kafka and Spark
+  \item Implemented anomaly detection system reducing false positives by 30\%
+  \item Created dashboards for audience analytics using D3.js and internal BI tools
+\end{tightitemize}
+
+\sectionsep
+
+\section{Projects}
+
+\runsubsection{OpenStreetMap}
+\datedsubsection{Backend Engineer}{2012 -- 2013}
+\begin{tightitemize}
+  \item Developed API endpoints serving 2 million mapping requests per day
+  \item Implemented caching layer reducing database load by 45\%
+\end{tightitemize}
+
+\end{minipage}
+\end{document}

@@ -1,0 +1,72 @@
+% Multi-section Resume with subsections — tests subsection detection
+\documentclass[10pt,letterpaper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{hyperref}
+
+\titleformat{\section}{\Large\bfseries\scshape}{}{0em}{}[\hrule\vspace{4pt}]
+\titleformat{\subsection}{\normalsize\bfseries\itshape}{}{0em}{}
+
+\begin{document}
+
+\begin{center}
+  {\Huge\textbf{Robert Kim}} \\[6pt]
+  \textit{DevOps Engineer \& Cloud Architect} \\[4pt]
+  San Francisco, CA $|$ rkim@email.com $|$ +1-415-555-0789
+\end{center}
+
+\vspace{10pt}
+
+\section{Professional Experience}
+
+\subsection{Cloud Infrastructure Lead --- Google LLC, Mountain View, CA (2021--Present)}
+\begin{itemize}[leftmargin=1.5em]
+  \item Managed GCP infrastructure for internal tools serving 80,000+ employees globally
+  \item Reduced cloud spending by 30\% through right-sizing and committed use discount optimization
+  \item Implemented Infrastructure as Code using Terraform, managing 500+ resources across 12 regions
+  \item Led incident response for Sev-1 outages, achieving 99.99\% SLA compliance
+\end{itemize}
+
+\subsection{Senior DevOps Engineer --- Netflix, Los Gatos, CA (2018--2021)}
+\begin{itemize}[leftmargin=1.5em]
+  \item Operated Kubernetes clusters running 2,000+ microservices at 40M+ requests/second peak
+  \item Designed blue-green deployment system enabling zero-downtime releases
+  \item Built internal developer platform reducing time-to-production for new services from 2 weeks to 1 day
+  \item Authored runbooks and conducted game days improving MTTR by 50\%
+\end{itemize}
+
+\subsection{DevOps Engineer --- Amazon Web Services, Seattle, WA (2015--2018)}
+\begin{itemize}[leftmargin=1.5em]
+  \item Contributed to core EC2 fleet management tooling supporting hundreds of thousands of instances
+  \item Developed automated patching system reducing vulnerability exposure window by 85\%
+  \item Created cost attribution dashboards used by 500+ internal teams for FinOps optimization
+\end{itemize}
+
+\section{Education}
+
+\subsection{B.S. Computer Engineering --- Carnegie Mellon University, Pittsburgh, PA (2011--2015)}
+\begin{itemize}[leftmargin=1.5em]
+  \item GPA: 3.7/4.0
+  \item Focus: Distributed Systems and Operating Systems
+\end{itemize}
+
+\section{Certifications \& Skills}
+
+\subsection{Cloud Certifications}
+\begin{itemize}[leftmargin=1.5em]
+  \item Google Cloud Professional Cloud Architect (2023)
+  \item AWS Solutions Architect Professional (2022)
+  \item CKA: Certified Kubernetes Administrator (2021)
+\end{itemize}
+
+\subsection{Technical Proficiency}
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Languages:} Python, Go, Bash, HCL (Terraform), YAML
+  \item \textbf{Platforms:} GCP, AWS, Azure, Kubernetes, Docker, Helm
+  \item \textbf{Monitoring:} Prometheus, Grafana, Datadog, PagerDuty, Jaeger
+  \item \textbf{CI/CD:} Jenkins, GitHub Actions, Spinnaker, ArgoCD
+\end{itemize}
+
+\end{document}

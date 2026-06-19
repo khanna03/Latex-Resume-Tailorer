@@ -1,0 +1,55 @@
+% Resume with special characters — tests & % $ # _ escaping and comments
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2cm]{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+% This is a comment that should NOT be treated as a section
+
+\begin{document}
+
+% Top-level comment — should be invisible to parser
+\begin{center}
+  {\Large\textbf{Emma O'Brien}} \\
+  emma.obrien@email.com $|$ +44 20 7123 4567 $|$ London, UK
+\end{center}
+
+\section{Experience}
+
+% Section comment
+\textbf{Finance \& Risk Analyst} \hfill \textit{2020--Present} \\
+Barclays Capital, London
+\begin{itemize}
+  \item Managed portfolio of \$500M in fixed-income securities, achieving 8\% annual returns
+  \item Developed VaR models using Python \& R, reducing risk estimation errors by 22\%
+  % Bullet comment — should not appear
+  \item Automated regulatory reporting (PRA, FCA) saving 15 hours/week in manual work
+  \item Analysed credit risk for 100+ counterparties under Basel III \& IV frameworks
+\end{itemize}
+
+\section{Education}
+
+\textbf{MSc Financial Mathematics} \hfill 2018--2020 \\
+Imperial College London --- Distinction (Merit: 85\%)
+
+\textbf{BSc Mathematics \& Economics} \hfill 2015--2018 \\
+University of Oxford --- First Class Honours
+
+\section{Technical Skills}
+
+\begin{itemize}
+  \item \textbf{Languages:} Python, R, SQL, VBA, MATLAB
+  \item \textbf{Libraries:} NumPy, pandas, SciPy, statsmodels, scikit-learn
+  \item \textbf{Finance:} Bloomberg Terminal, Reuters Eikon, FactSet, Murex
+  \item \textbf{Regulatory:} Basel III/IV, MiFID II, IFRS 9, CECL
+\end{itemize}
+
+\section{Certifications}
+
+\begin{itemize}
+  \item CFA Level III (2022) --- CFA Institute
+  \item FRM Part II (2021) --- GARP
+  \item Certificate in Quantitative Finance (2020) --- CQF Institute
+\end{itemize}
+
+\end{document}

@@ -19,7 +19,7 @@ class User(Base):
     """
     __tablename__ = "users"
 
-    id = Column(Integer, primary key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     # Password stored as a secure bcrypt hash (never in plaintext)
     hashed_password = Column(String(255), nullable=False)
@@ -37,7 +37,7 @@ class Resume(Base):
     """
     __tablename__ = "resumes"
 
-    id = Column(Integer, primary key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title = Column(String(255), default="My Resume")
     raw_latex = Column(Text, nullable=False)
@@ -58,7 +58,7 @@ class ResumeBulletVector(Base):
     """
     __tablename__ = "resume_bullet_vectors"
 
-    id = Column(Integer, primary key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     resume_id = Column(Integer, ForeignKey("resumes.id", ondelete="CASCADE"), nullable=False)
     section_id = Column(String(100), nullable=False)     # e.g., "section_0"
     bullet_index = Column(Integer, nullable=False)      # Position inside the section list
@@ -77,7 +77,7 @@ class Version(Base):
     """
     __tablename__ = "versions"
 
-    id = Column(Integer, primary key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     resume_id = Column(Integer, ForeignKey("resumes.id", ondelete="CASCADE"), nullable=False)
     job_title = Column(String(255), nullable=False)
     tailored_latex = Column(Text, nullable=False)
@@ -97,7 +97,7 @@ class Feedback(Base):
     """
     __tablename__ = "feedbacks"
 
-    id = Column(Integer, primary key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     version_id = Column(Integer, ForeignKey("versions.id", ondelete="CASCADE"), nullable=False)
     score_stars = Column(Integer, nullable=False)       # 1 to 5 rating
     thumbs_direction = Column(String(10), nullable=False) # 'up' | 'down'
@@ -116,7 +116,7 @@ class AuditLog(Base):
     """
     __tablename__ = "audit_logs"
 
-    id = Column(Integer, primary key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True) # Null for pre-login actions
     action = Column(String(100), nullable=False)         # e.g., "login", "tailor_resume"
     ip_address = Column(String(45), nullable=True)       # IPv4 or IPv6 address length compliant

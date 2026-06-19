@@ -1,0 +1,110 @@
+% AltaCV — Modern single-page resume
+% Simplified for round-trip testing
+\documentclass[10pt,a4paper,ragged2e,withhyper]{altacv}
+
+\geometry{left=1.25cm,right=1.25cm,top=1.5cm,bottom=1.5cm,columnsep=1.2cm}
+
+\usepackage{paracol}
+\usepackage[rm]{roboto}
+\usepackage[defaultsans]{lato}
+\renewcommand{\familydefault}{\sfdefault}
+
+\definecolor{VividPurple}{HTML}{3E0097}
+\definecolor{SlateGrey}{HTML}{2E2E2E}
+\definecolor{LightGrey}{HTML}{666666}
+\colorlet{heading}{VividPurple}
+\colorlet{headingrule}{VividPurple}
+\colorlet{accent}{VividPurple}
+\colorlet{emphasis}{SlateGrey}
+\colorlet{body}{LightGrey}
+
+\begin{document}
+
+\name{Alex Chen}
+\tagline{Machine Learning Engineer}
+\personalinfo{
+  \email{alex.chen@example.com}
+  \phone{555-867-5309}
+  \location{Seattle, WA}
+  \linkedin{alex-chen-ml}
+  \github{alexchen}
+}
+
+\makecvheader
+
+\columnratio{0.6}
+
+\begin{paracol}{2}
+
+\cvsection{Experience}
+
+\cvevent{Senior ML Engineer}{TechGiant Corp}{March 2021 -- Present}{Seattle, WA}
+\begin{itemize}
+  \item Designed and deployed production ML models serving 50M+ inference requests daily
+  \item Led migration of legacy Python 2 pipeline to Python 3, reducing technical debt by 80\%
+  \item Built real-time feature store using Apache Kafka and Redis, cutting model latency by 35\%
+  \item Mentored 4 junior engineers on ML best practices and system design principles
+\end{itemize}
+
+\divider
+
+\cvevent{ML Engineer}{AI Startup Labs}{Jan 2019 -- Feb 2021}{Remote}
+\begin{itemize}
+  \item Developed NLP models for sentiment analysis achieving 92\% accuracy on benchmark datasets
+  \item Implemented distributed training pipeline using PyTorch and AWS SageMaker
+  \item Reduced model training time by 60\% through mixed-precision training and gradient checkpointing
+\end{itemize}
+
+\cvsection{Projects}
+
+\cvevent{Open Source Contribution — Hugging Face Transformers}{}{}{}
+\begin{itemize}
+  \item Contributed efficient attention mechanism reducing memory footprint by 25\%
+  \item Implemented support for new model architectures adopted by 1000+ downstream users
+\end{itemize}
+
+\switchcolumn
+
+\cvsection{Education}
+
+\cvevent{M.S. Computer Science}{University of Washington}{2017 -- 2019}{}
+\begin{itemize}
+  \item Focus: Machine Learning and Distributed Systems
+  \item GPA: 3.9/4.0
+\end{itemize}
+
+\divider
+
+\cvevent{B.S. Mathematics \& CS}{UC Berkeley}{2013 -- 2017}{}
+\begin{itemize}
+  \item Minor in Statistics
+  \item Dean's List all semesters
+\end{itemize}
+
+\cvsection{Skills}
+
+\cvtag{Python}
+\cvtag{PyTorch}
+\cvtag{TensorFlow}
+\cvtag{JAX}
+\cvtag{SQL}
+\cvtag{Go}
+
+\divider
+
+\cvtag{AWS SageMaker}
+\cvtag{Kubernetes}
+\cvtag{MLflow}
+\cvtag{Apache Kafka}
+\cvtag{Redis}
+
+\cvsection{Certifications}
+
+\begin{itemize}
+  \item AWS Certified ML Specialty (2023)
+  \item Google Professional ML Engineer (2022)
+\end{itemize}
+
+\end{paracol}
+
+\end{document}

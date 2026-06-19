@@ -34,8 +34,8 @@ import { checkFabrication } from './fabrication-check.js';
 // State
 // ---------------------------------------------------------------------------
 const state = {
-  apiKey: localStorage.getItem('gemini_api_key') || '',
-  model: localStorage.getItem('gemini_model') || 'gemini-2.5-flash',
+  apiKey: localStorage.getItem('user_api_key') || localStorage.getItem('gemini_api_key') || '',
+  model: localStorage.getItem('user_ai_model') || localStorage.getItem('gemini_model') || 'gemini-2.5-flash',
   latexInput: '',
   jdInput: '',
   originalAst: null,
@@ -394,8 +394,8 @@ function closeSettings() { el.settingsDrawer.classList.add('hidden'); }
 function saveSettings() {
   state.apiKey = el.apiKeyInput.value.trim();
   state.model = el.modelSelect.value;
-  localStorage.setItem('gemini_api_key', state.apiKey);
-  localStorage.setItem('gemini_model', state.model);
+  localStorage.setItem('user_api_key', state.apiKey);
+  localStorage.setItem('user_ai_model', state.model);
   closeSettings();
   updateStatusBadge(state.apiKey ? 'ready' : 'error', state.apiKey ? '' : 'API Key Missing');
 }

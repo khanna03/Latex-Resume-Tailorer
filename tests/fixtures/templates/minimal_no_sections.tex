@@ -1,0 +1,38 @@
+% Minimal Resume — no sections, just \item bullets (edge case: no section commands)
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+
+\begin{document}
+
+\begin{center}
+  \textbf{\Large James Wright} \\
+  james@wright.dev $\cdot$ (206) 555-0321 $\cdot$ Seattle, WA
+\end{center}
+
+\vspace{8pt}
+\noindent\rule{\textwidth}{0.5pt}
+\vspace{4pt}
+
+\noindent\textbf{Software Developer} with 3 years of experience in full-stack web development.
+
+\vspace{8pt}
+
+\noindent\textbf{Key Experience:}
+\begin{itemize}
+  \item Developed e-commerce platform serving 10,000+ daily users using Django and React
+  \item Integrated Stripe payment processing handling \$50,000+ monthly transactions
+  \item Optimised PostgreSQL queries reducing page load times from 3s to 400ms
+  \item Maintained 98\% test coverage using pytest and React Testing Library
+  \item Deployed to AWS using Elastic Beanstalk and RDS, ensuring 99.9\% uptime
+\end{itemize}
+
+\vspace{8pt}
+
+\noindent\textbf{Education:} B.S. Computer Science, University of Washington, 2021
+
+\vspace{4pt}
+
+\noindent\textbf{Skills:} Python, JavaScript, Django, React, PostgreSQL, AWS, Docker, Git
+
+\end{document}

@@ -1,0 +1,71 @@
+% Standard Article Resume — Clean Minimal Template
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[left=0.75in,right=0.75in,top=0.75in,bottom=0.75in]{geometry}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{parskip}
+
+\titleformat{\section}{\large\bfseries}{}{0em}{}[\titlerule]
+\setlist[itemize]{leftmargin=*}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{Sarah Johnson}} \\[4pt]
+  Chicago, IL $\cdot$ sarah.johnson@email.com $\cdot$ (312) 555-0456 \\
+  \href{https://linkedin.com/in/sarahjohnson}{linkedin.com/in/sarahjohnson}
+\end{center}
+
+\section{Summary}
+
+Results-driven Data Engineer with 6+ years of experience building scalable data pipelines
+and analytics infrastructure. Expert in Python, SQL, and cloud technologies with proven track
+record of delivering high-impact solutions in fast-paced environments.
+
+\section{Experience}
+
+\textbf{Principal Data Engineer} \hfill \textit{Jan 2022 -- Present} \\
+\textit{FinTech Solutions Inc., Chicago, IL}
+\begin{itemize}
+  \item Architected real-time data platform ingesting 5 billion events daily using Apache Kafka and Flink
+  \item Reduced ETL pipeline failures by 75\% through comprehensive monitoring and automated testing
+  \item Led team of 8 engineers in migration from on-premise Hadoop to AWS EMR, saving \$2M annually
+  \item Established data engineering best practices and mentoring program for 12-person team
+\end{itemize}
+
+\textbf{Senior Data Engineer} \hfill \textit{Mar 2019 -- Dec 2021} \\
+\textit{Analytics Corp, Remote}
+\begin{itemize}
+  \item Built dbt data transformation pipeline processing 500GB daily, serving 300+ internal users
+  \item Implemented data quality framework catching 95\% of data anomalies before production
+  \item Designed star schema data warehouse supporting complex analytical queries in under 5 seconds
+\end{itemize}
+
+\textbf{Data Engineer} \hfill \textit{Jun 2017 -- Feb 2019} \\
+\textit{Startup Ventures, Chicago, IL}
+\begin{itemize}
+  \item Built Python ETL pipelines integrating 20+ third-party APIs into central data warehouse
+  \item Created Airflow DAGs automating 40 manual reporting processes saving 20 hours/week
+\end{itemize}
+
+\section{Education}
+
+\textbf{M.S. Data Science} \hfill \textit{2015 -- 2017} \\
+\textit{Northwestern University, Evanston, IL} --- GPA: 3.85/4.0
+
+\textbf{B.S. Computer Science} \hfill \textit{2011 -- 2015} \\
+\textit{University of Illinois at Chicago}
+
+\section{Technical Skills}
+
+\begin{itemize}
+  \item \textbf{Languages:} Python, SQL, Scala, Java, Bash
+  \item \textbf{Big Data:} Apache Spark, Kafka, Flink, Hadoop, Hive
+  \item \textbf{Cloud:} AWS (EMR, S3, Redshift, Glue), GCP (BigQuery, Dataflow), Azure
+  \item \textbf{Tools:} dbt, Airflow, Terraform, Docker, Kubernetes, Git, Jenkins
+  \item \textbf{Databases:} PostgreSQL, MySQL, MongoDB, Cassandra, Redshift, BigQuery
+\end{itemize}
+
+\end{document}

@@ -10,9 +10,9 @@
 import json
 import re
 from typing import List, Dict, Any, Set
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
-import google.generativeai as genai
+from backend.llm_provider import generate_json_content
 
 from backend.database import get_db
 from backend.models import Resume, Version, AuditLog
@@ -52,8 +52,6 @@ def generate_tailoring_candidate(
     if locked_section_ids is None:
         locked_section_ids = set()
 
-    genai.configure(api_key=api_key)
-
     # Style guidance per mode matching ats-engine.js assumptions
     mode_instructions = {
         "conservative": (
@@ -83,6 +81,8 @@ def generate_tailoring_candidate(
                 "bullets": [b["text"] for b in section.get("bullets", [])]
             })
 
+    custom_inst_text = f"=== CUSTOM INSTRUCTIONS ===\n{custom_instructions}\n" if custom_instructions else ""
+
     prompt = f"""You are an expert resume optimization specialist and ATS engineer.
 Your task is to tailor resume bullet points to maximize ATS score for the target job.
 
@@ -97,8 +97,7 @@ Industry Terms: {', '.join(jd.get('industry_terms', []))}
 === TAILORING MODE ===
 {mode_instructions.get(mode, mode_instructions['moderate'])}
 
-{f"=== CUSTOM INSTRUCTIONS ===\n{custom_instructions}" if custom_instructions else ""}
-
+{custom_inst_text}
 === RESUME SECTIONS (plain text, structured) ===
 {json.dumps(editable_sections, indent=2)}
 
@@ -131,26 +130,10 @@ Respond ONLY with this JSON schema:
   ]
 }}"""
 
-    model = genai.GenerativeModel(model_name)
-    
-    # Request structured JSON format
-    response = model.generate_content(
-        prompt,
-        generation_config={"response_mime_type": "application/json"}
-    )
-    
-    try:
-        return json.loads(response.text.strip())
-    except Exception:
-        # Regex fallback to extract JSON braces if markdown logs contaminate string
-        match = re.search(r"\{[\s\S]*\}", response.text)
-        if match:
-            return json.loads(match.group(0))
-        raise ValueError("Gemini returned invalid JSON structure: " + response.text[:200])
+    return generate_json_content(api_key, model_name, prompt)
 
 def repair_latex_via_gemini(api_key: str, model_name: str, latex: str, formatted_errors: str) -> str:
-    """Invokes Gemini in JSON mode to correct specific syntax compiler errors."""
-    genai.configure(api_key=api_key)
+    """Invokes LLM in JSON mode to correct specific syntax compiler errors."""
     
     prompt = f"""You are a LaTeX compilation expert. Fix the following specific errors in the LaTeX document.
 
@@ -180,39 +163,29 @@ Respond with JSON:
   ]
 }}"""
 
-    model = genai.GenerativeModel(model_name)
-    response = model.generate_content(
-        prompt,
-        generation_config={"response_mime_type": "application/json"}
-    )
-    
-    try:
-        data = json.loads(response.text.strip())
-        return data.get("fixedLatex", latex)
-    except Exception:
-        match = re.search(r"\{[\s\S]*\}", response.text)
-        if match:
-            try:
-                data = json.loads(match.group(0))
-                return data.get("fixedLatex", latex)
-            except Exception:
-                pass
-        return latex
+    data = generate_json_content(api_key, model_name, prompt)
+    return data.get("fixedLatex", latex)
 
 # --------------------------------------------------------------------------
 # API Endpoints
 # --------------------------------------------------------------------------
 
 @router.post("/analyze-jd", response_model=JDAnalysisOut)
-def analyze_job_description(payload: JDInput, current_user: UserOut = Depends(get_current_user)):
+def analyze_job_description(
+    payload: JDInput, 
+    current_user: UserOut = Depends(get_current_user),
+    x_api_key: str = Header(None),
+    x_ai_model: str = Header(None)
+):
     """Extracts structured intelligence (skills, keywords) from a job posting."""
-    if not settings.GEMINI_API_KEY:
+    api_key = x_api_key or settings.GEMINI_API_KEY
+    model_name = x_ai_model or settings.GEMINI_MODEL
+
+    if not api_key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Gemini API Key is not configured on the server."
+            detail="API Key is not configured on the server or provided by client."
         )
-
-    genai.configure(api_key=settings.GEMINI_API_KEY)
 
     prompt = f"""You are an expert recruiter and ATS specialist. Analyze the following Job Description and extract structured intelligence.
 
@@ -241,12 +214,7 @@ Rules:
 - Return ONLY valid JSON, no markdown, no explanation."""
 
     try:
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "application/json"}
-        )
-        data = json.loads(response.text.strip())
+        data = generate_json_content(api_key, model_name, prompt)
         
         # Ensure Pydantic schema validation is satisfied with arrays
         for k in ["required_skills", "preferred_skills", "soft_skills", "industry_terms", "ats_keywords", "responsibilities"]:
@@ -270,25 +238,30 @@ Rules:
 def run_tailoring_pipeline(
     payload: TailorRequest,
     current_user: UserOut = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    x_api_key: str = Header(None),
+    x_ai_model: str = Header(None)
 ):
     """
     Executes the full LaTeX Resume Tailoring pipeline on the server:
     1. Fetches user's resume and verifies authorization ownership.
     2. Computes pre-scoring using hybrid keyword + pgvector semantic matching.
-    3. Runs single-mode or multi-generation variants in parallel via Gemini.
+    3. Runs single-mode or multi-generation variants in parallel via LLM.
     4. For each variant:
        - Splicing tailored bullets (offset-based).
        - Enforces locked section reverts (validateLockedSections).
        - Runs post-generation fabrication NER checking.
     5. Ranks all candidates and selects the highest scoring variant.
-    6. Triggers validation & Gemini repair loops on the selected best candidate.
+    6. Triggers validation & LLM repair loops on the selected best candidate.
     7. Saves the tailored document as a Version in PostgreSQL.
     """
-    if not settings.GEMINI_API_KEY:
+    api_key = x_api_key or settings.GEMINI_API_KEY
+    model_name = x_ai_model or settings.GEMINI_MODEL
+
+    if not api_key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Gemini API Key is not configured on the server."
+            detail="API Key is not configured on the server or provided by client."
         )
 
     # 1. Fetch resume and verify ownership
@@ -316,10 +289,10 @@ def run_tailoring_pipeline(
 
     for mode in modes:
         try:
-            # Query Gemini for plain-text bullet modifications
+            # Query LLM for plain-text bullet modifications
             gpt_res = generate_tailoring_candidate(
-                settings.GEMINI_API_KEY,
-                settings.GEMINI_MODEL,
+                api_key,
+                model_name,
                 ast,
                 payload.jd_analysis.model_dump(),
                 mode,
@@ -373,8 +346,8 @@ def run_tailoring_pipeline(
         repair_attempts += 1
         error_log = format_errors_for_repair(val_report["errors"])
         tailored_latex = repair_latex_via_gemini(
-            settings.GEMINI_API_KEY,
-            settings.GEMINI_MODEL,
+            api_key,
+            model_name,
             tailored_latex,
             error_log
         )

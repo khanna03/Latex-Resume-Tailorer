@@ -1,0 +1,76 @@
+% Dense multi-section resume — many sections, nested environments
+\documentclass[10pt,a4paper]{article}
+
+\usepackage[margin=1.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{multicol}
+\usepackage{hyperref}
+\usepackage{titlesec}
+
+\titleformat{\section}{\normalsize\bfseries\uppercase}{}{0em}{}[\vspace{-4pt}\rule{\linewidth}{0.5pt}\vspace{4pt}]
+\setlist[itemize]{noitemsep, topsep=2pt, leftmargin=*}
+
+\begin{document}
+
+{\centering
+  {\huge\textbf{Priya Patel}} \\[3pt]
+  Full Stack Engineer $|$ priya@patel.io $|$ 555-234-5678 $|$ Boston, MA \\
+}
+
+\section{Experience}
+
+\textbf{Staff Engineer} $|$ Wayfair $|$ Boston, MA $|$ \textit{2022--Present}
+\begin{itemize}
+  \item Architected checkout flow handling \$14B annual GMV with 99.95\% uptime
+  \item Led 12-person team migrating monolith to event-driven microservices
+  \item Reduced checkout abandonment by 18\% through A/B tested UX improvements
+  \item Established engineering standards adopted across 5 product teams
+\end{itemize}
+
+\textbf{Senior Software Engineer} $|$ HubSpot $|$ Cambridge, MA $|$ \textit{2019--2022}
+\begin{itemize}
+  \item Built CRM integration APIs used by 100,000+ business customers
+  \item Developed real-time notification system processing 50M+ events/day
+  \item Improved API response times by 55\% through Redis caching and query optimization
+\end{itemize}
+
+\textbf{Software Engineer} $|$ Rapid7 $|$ Boston, MA $|$ \textit{2016--2019}
+\begin{itemize}
+  \item Created vulnerability scanning dashboard consolidating data from 20+ security tools
+  \item Implemented OAuth 2.0 and SAML SSO for enterprise customer onboarding
+  \item Wrote automated test suite achieving 90\% code coverage across backend services
+\end{itemize}
+
+\section{Education}
+
+\textbf{M.S. Computer Science} $|$ Northeastern University, Boston, MA $|$ \textit{2014--2016} \\
+GPA: 3.9/4.0 $|$ Concentration: Distributed Systems
+
+\textbf{B.Tech Information Technology} $|$ IIT Bombay, Mumbai, India $|$ \textit{2010--2014} \\
+Gold Medalist $|$ Ranked 1st in department
+
+\section{Open Source}
+
+\begin{itemize}
+  \item \textbf{react-query-builder} (2.1k GitHub stars): Maintainer of popular query builder library
+  \item \textbf{fastapi-pagination}: Contributor with 15+ merged PRs improving performance
+\end{itemize}
+
+\section{Skills}
+
+\begin{itemize}
+  \item \textbf{Frontend:} React, TypeScript, Next.js, GraphQL, Webpack, Storybook
+  \item \textbf{Backend:} Python, Go, Java, Node.js, FastAPI, Spring Boot, gRPC
+  \item \textbf{Data:} PostgreSQL, MySQL, Redis, Elasticsearch, Kafka, Snowflake
+  \item \textbf{Cloud \& DevOps:} AWS, GCP, Docker, Kubernetes, Terraform, Datadog
+\end{itemize}
+
+\section{Awards \& Recognition}
+
+\begin{itemize}
+  \item Wayfair Technology Award for Outstanding Engineering Impact (2023)
+  \item HubSpot Innovation Award --- Best Developer Tool (2021)
+  \item Forbes 30 Under 30 Technology (2020)
+\end{itemize}
+
+\end{document}

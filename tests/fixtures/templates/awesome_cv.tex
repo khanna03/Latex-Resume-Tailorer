@@ -1,0 +1,84 @@
+% Awesome CV — Modern Resume Template
+% Simplified representation for round-trip testing
+\documentclass[11pt, a4paper]{awesome-cv}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{left=1.4cm, top=.8cm, right=1.4cm, bottom=1.8cm, footskip=.5cm}
+
+\fontdir[fonts/]
+\colorlet{awesome}{awesome-red}
+\setbool{acvSectionColorHighlight}{true}
+
+\name{John}{Smith}
+\address{123 Main Street, New York, NY 10001}
+\mobile{(555) 555-5555}
+\email{john.smith@email.com}
+\homepage{www.johnsmith.com}
+\github{JohnSmith}
+\linkedin{john-smith}
+
+\begin{document}
+
+\makecvheader
+
+\cvsection{Work Experience}
+
+\begin{cventries}
+  \cventry
+    {Senior Software Engineer}
+    {TechCorp Inc.}
+    {San Francisco, CA}
+    {Jan 2022 -- Present}
+    {
+      \begin{cvitems}
+        \item {Led development of microservices architecture serving 10 million users daily}
+        \item {Reduced API latency by 40\% through database query optimization and caching strategies}
+        \item {Mentored team of 5 junior engineers, conducting code reviews and technical interviews}
+        \item {Implemented CI/CD pipelines using GitHub Actions, reducing deployment time by 60\%}
+      \end{cvitems}
+    }
+  \cventry
+    {Software Engineer}
+    {StartupXYZ}
+    {Remote}
+    {Jun 2019 -- Dec 2021}
+    {
+      \begin{cvitems}
+        \item {Built RESTful APIs using Node.js and Express, integrated with PostgreSQL databases}
+        \item {Developed React frontend components, improving user engagement by 25\%}
+        \item {Collaborated with product team to define and implement new feature specifications}
+      \end{cvitems}
+    }
+\end{cventries}
+
+\cvsection{Education}
+
+\begin{cventries}
+  \cventry
+    {B.S. in Computer Science}
+    {State University}
+    {New York, NY}
+    {2015 -- 2019}
+    {GPA: 3.8/4.0, Summa Cum Laude}
+\end{cventries}
+
+\cvsection{Skills}
+
+\begin{cvskills}
+  \cvskill
+    {Programming}
+    {Python, JavaScript, TypeScript, Go, Java, C++}
+  \cvskill
+    {Frameworks}
+    {React, Node.js, Django, FastAPI, Spring Boot}
+  \cvskill
+    {Cloud \& DevOps}
+    {AWS, GCP, Docker, Kubernetes, Terraform, CI/CD}
+  \cvskill
+    {Databases}
+    {PostgreSQL, MongoDB, Redis, Elasticsearch}
+\end{cvskills}
+
+\end{document}

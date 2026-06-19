@@ -65,7 +65,7 @@ def test_parse_latex_to_ast_preamble():
     ast = parse_latex_to_ast(latex)
     assert "geometry" in ast["packages"]
     assert "enumitem" in ast["packages"]
-    assert "mycommand" in ast["customCommands"]
+    assert "\\mycommand" in ast["customCommands"]
     assert len(ast["sections"]) == 1
     assert ast["sections"][0]["title"] == "Education"
     assert len(ast["sections"][0]["bullets"]) == 1

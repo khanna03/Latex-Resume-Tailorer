@@ -14,11 +14,21 @@ const API_BASE_URL = 'http://localhost:8000/api';
  */
 async function apiRequest(endpoint, options = {}) {
   const token = localStorage.getItem('curricula_token');
+  const apiKey = localStorage.getItem('user_api_key') || localStorage.getItem('gemini_api_key');
+  const aiModel = localStorage.getItem('user_ai_model') || localStorage.getItem('gemini_model');
   const headers = options.headers || {};
 
   // Inject authentication header if JWT token is stored
   if (token && !headers['Authorization']) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  if (apiKey && !headers['X-API-Key']) {
+    headers['X-API-Key'] = apiKey;
+  }
+  
+  if (aiModel && !headers['X-AI-Model']) {
+    headers['X-AI-Model'] = aiModel;
   }
 
   const config = {
@@ -44,7 +54,7 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
-# 1. Authentication Requests
+// 1. Authentication Requests
 // ---------------------------------------------------------------------------
 
 /**
@@ -94,7 +104,7 @@ export function isAuthenticated() {
 }
 
 // ---------------------------------------------------------------------------
-# 2. Resume & AST Requests
+// 2. Resume & AST Requests
 // ---------------------------------------------------------------------------
 
 /**
@@ -129,7 +139,7 @@ export async function getResumeDetail(resumeId) {
 }
 
 // ---------------------------------------------------------------------------
-# 3. Tailoring Pipeline Requests
+// 3. Tailoring Pipeline Requests
 // ---------------------------------------------------------------------------
 
 /**
@@ -166,7 +176,7 @@ export async function runTailoringPipeline(resumeId, jdAnalysis, config = {}, lo
 }
 
 // ---------------------------------------------------------------------------
-# 4. Feedback & Compiler Requests
+// 4. Feedback & Compiler Requests
 // ---------------------------------------------------------------------------
 
 /**

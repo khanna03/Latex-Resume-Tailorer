@@ -8,7 +8,7 @@
 
 import re
 from typing import Dict, Any, List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Header
 from sqlalchemy.orm import Session
 import google.generativeai as genai
 
@@ -202,7 +202,9 @@ async def upload_resume(
     file: UploadFile = File(...),
     title: str = Form("My Resume"),
     current_user: UserOut = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    x_api_key: str = Header(None),
+    x_ai_model: str = Header(None)
 ):
     """
     Accepts LaTeX (.tex) or PDF (.pdf) resume uploads:
@@ -223,16 +225,19 @@ async def upload_resume(
         
     elif filename.endswith(".pdf"):
         # PDF Multimodal Conversion Flow
-        if not settings.GEMINI_API_KEY:
+        api_key = x_api_key if x_api_key and x_api_key.startswith("AIza") else settings.GEMINI_API_KEY
+        model_name = x_ai_model if x_ai_model and x_ai_model.startswith("gemini-") else settings.GEMINI_MODEL
+        
+        if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Gemini API Key is not configured on the server. PDF upload requires an API key."
+                detail="A Gemini API Key is required for PDF parsing. Please select a Gemini model and provide a key."
             )
             
         pdf_bytes = await file.read()
         
         # Configure the Google generative AI client
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+        genai.configure(api_key=api_key)
         
         # We prompt Gemini using application/pdf parts to output clean raw LaTeX code
         prompt = """
@@ -249,7 +254,7 @@ async def upload_resume(
         """
         
         try:
-            model = genai.GenerativeModel(settings.GEMINI_MODEL)
+            model = genai.GenerativeModel(model_name)
             response = model.generate_content([
                 {"mime_type": "application/pdf", "data": pdf_bytes},
                 prompt

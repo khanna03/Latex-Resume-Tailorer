@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements mapping
-COPY requirements.txt .
+COPY backend/requirements.txt .
 
 # Install python packages
 RUN pip install --no-cache-dir -r requirements.txt
@@ -30,10 +30,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
 # Copy remaining code files
-COPY . .
+COPY backend /app/backend
 
 # Expose standard FastAPI port
 EXPOSE 8000
 
 # Start FastAPI uvicorn server mapping globally
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

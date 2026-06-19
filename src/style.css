@@ -1182,6 +1182,165 @@ html, body {
 ::-webkit-scrollbar-thumb:hover { background: var(--border-active); }
 
 /* =========================================================
+   ATS METHOD NOTE
+   ========================================================= */
+.ats-method-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(79,142,247,0.06);
+  border: 1px solid rgba(79,142,247,0.18);
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+}
+.method-note-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--accent-blue);
+}
+.method-note-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  font-style: italic;
+}
+
+/* =========================================================
+   FABRICATION FLAG PANEL
+   ========================================================= */
+.fabrication-flag-section {
+  background: rgba(251,191,36,0.06);
+  border: 1px solid rgba(251,191,36,0.3);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.fabrication-flag-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.fabrication-flag-icon { font-size: 16px; }
+.fabrication-flag-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-yellow);
+}
+.fabrication-flag-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+.fabrication-flag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fabrication-flag-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(251,191,36,0.08);
+  border: 1px solid rgba(251,191,36,0.2);
+  flex-wrap: wrap;
+}
+.fab-entity {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-yellow);
+}
+.fab-type-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(251,191,36,0.15);
+  color: var(--accent-yellow);
+  border: 1px solid rgba(251,191,36,0.3);
+  flex-shrink: 0;
+}
+.fab-context {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   REVERTED LOCKED SECTIONS NOTICE
+   ========================================================= */
+.reverted-sections-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(52,211,153,0.06);
+  border: 1px solid rgba(52,211,153,0.25);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--accent-green);
+  margin-bottom: 14px;
+}
+.reverted-icon { font-size: 14px; flex-shrink: 0; }
+
+/* =========================================================
+   GENUINE GAPS PANEL
+   ========================================================= */
+.genuine-gaps-section {
+  background: rgba(167,139,250,0.06);
+  border: 1px solid rgba(167,139,250,0.25);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.genuine-gaps-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.genuine-gaps-icon { font-size: 16px; }
+.genuine-gaps-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-purple);
+}
+.genuine-gaps-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+.genuine-gaps-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* =========================================================
+   EXTRA KW-CHIP VARIANTS
+   ========================================================= */
+.kw-chip.required  { background: rgba(248,113,113,0.1); color: var(--accent-red); border: 1px solid rgba(248,113,113,0.25); }
+.kw-chip.preferred { background: rgba(251,191,36,0.1); color: var(--accent-yellow); border: 1px solid rgba(251,191,36,0.25); }
+.kw-chip.ats-kw    { background: rgba(0,212,255,0.08); color: var(--accent-cyan); border: 1px solid rgba(0,212,255,0.22); }
+.kw-chip.soft      { background: rgba(52,211,153,0.08); color: var(--accent-green); border: 1px solid rgba(52,211,153,0.22); }
+.kw-chip.industry  { background: rgba(167,139,250,0.08); color: var(--accent-purple); border: 1px solid rgba(167,139,250,0.22); }
+.kw-chip.none      { color: var(--text-muted); background: none; border: 1px dashed var(--border-subtle); }
+
+/* =========================================================
    RESPONSIVE — NARROW SCREENS
    ========================================================= */
 @media (max-width: 900px) {
@@ -1190,3 +1349,4 @@ html, body {
   .candidates-grid { grid-template-columns: 1fr; }
   .feedback-widget { width: calc(100vw - 32px); right: 16px; }
 }
+
