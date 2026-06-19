@@ -131,6 +131,7 @@ class TailorCandidate(BaseModel):
 
 class TailorResponse(BaseModel):
     """Output returned by the server containing candidate variants and scores."""
+    version_id: int
     best_mode: str
     ats_score_before: int
     ats_score_after: int

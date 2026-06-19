@@ -142,5 +142,6 @@ export function rankCandidates(originalLatex, candidates, jdAnalysis) {
  * @returns {CandidateScore}
  */
 export function pickBest(rankedCandidates) {
+  if (!rankedCandidates || rankedCandidates.length === 0) return null;
   return rankedCandidates[0] || null;
 }
