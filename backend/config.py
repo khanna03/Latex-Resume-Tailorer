@@ -31,7 +31,15 @@ class Settings(BaseSettings):
     # The API key required to run Gemini queries. Server-side only (never exposed).
     GEMINI_API_KEY: str = Field(default="", validation_alias="GEMINI_API_KEY")
     
-    # Optional endpoint override for local inference (vLLM, Ollama, etc.)
+    # Optional endpoint override for local inference servers (Phase 5/6).
+    # STUDY NOTE: When this is set, the application routes LLM requests to your
+    # local server (e.g., vLLM or Ollama) instead of calling the Gemini/OpenAI APIs.
+    # Example values:
+    #   - Ollama:  "http://localhost:11434/v1"
+    #   - vLLM:    "http://localhost:8000/v1"
+    # These local servers expose an OpenAI-compatible REST API, so we reuse the
+    # OpenAI Python SDK to communicate with them (see llm_provider.py).
+    # Set to None (default) to use the cloud API providers as normal.
     LOCAL_LLM_BASE_URL: str | None = Field(default=None, validation_alias="LOCAL_LLM_BASE_URL")
     
     # Gemini models used in our pipeline stages.

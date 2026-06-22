@@ -216,12 +216,25 @@ function setupEventListeners() {
   ['dragleave', 'drop'].forEach(evt => el.dropZone.addEventListener(evt, e => { e.preventDefault(); el.dropZone.classList.remove('dragover'); }));
   el.dropZone.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if (f) readFile(f); });
 
-  // JD file drag & drop
+  // ---- JD (Job Description) File Upload — Drag & Drop + Click ----
+  // STUDY NOTE: This mirrors the resume drop zone pattern above but targets
+  // a different element (jdDropZone) and calls readJDFile() instead of readFile().
+  // The guard `if (el.jdDropZone)` ensures the code doesn't crash if the
+  // HTML element is missing (defensive programming).
   if (el.jdDropZone) {
+    // Click to open the native file picker dialog
     el.jdDropZone.addEventListener('click', () => el.jdFileInput.click());
+
+    // When a file is selected via the picker, extract text from it
     el.jdFileInput.addEventListener('change', e => { if (e.target.files[0]) readJDFile(e.target.files[0]); });
+
+    // Highlight the drop zone when a file is dragged over it.
+    // STUDY NOTE: We must call e.preventDefault() on 'dragover' to allow
+    // the 'drop' event to fire — browsers default to rejecting drops.
     ['dragenter', 'dragover'].forEach(evt => el.jdDropZone.addEventListener(evt, e => { e.preventDefault(); el.jdDropZone.classList.add('dragover'); }));
     ['dragleave', 'drop'].forEach(evt => el.jdDropZone.addEventListener(evt, e => { e.preventDefault(); el.jdDropZone.classList.remove('dragover'); }));
+
+    // Handle the actual file drop
     el.jdDropZone.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if (f) readJDFile(f); });
   }
 
@@ -367,17 +380,31 @@ async function readFile(file) {
 // ---------------------------------------------------------------------------
 // JD File handling
 // ---------------------------------------------------------------------------
+// STUDY NOTE — How JD File Upload Works:
+// Unlike the resume upload (which sends the file to the backend for AST parsing),
+// JD files are processed entirely on the client side. We extract the plain text
+// and populate the JD textarea, so the user can review/edit before running the
+// pipeline. This keeps the UX snappy and avoids unnecessary backend round-trips.
+//
+// Supported formats:
+//   .pdf  → Extracted using PDF.js (same library used for resume PDFs)
+//   .docx → Extracted using JSZip (DOCX files are ZIP archives of XML files)
+//   .txt  → Read directly as plain text via the File API
+//   .rtf  → Read as plain text (RTF formatting tags are kept but mostly readable)
+// ---------------------------------------------------------------------------
 async function readJDFile(file) {
   const name = file.name.toLowerCase();
   const isPDF = name.endsWith('.pdf');
   const isTxt = name.endsWith('.txt') || name.endsWith('.rtf');
   const isDocx = name.endsWith('.docx') || name.endsWith('.doc');
 
+  // Reject unsupported file types early with a user-friendly message
   if (!isPDF && !isTxt && !isDocx) {
     alert('Supported formats: .pdf, .docx, .txt, .rtf');
     return;
   }
 
+  // Show a loading state in the drop zone while we process the file
   const dropText = el.jdDropZone.querySelector('.drop-text');
   el.jdDropZone.style.borderColor = 'var(--accent-yellow)';
   if (dropText) dropText.innerHTML = `<span style="color:var(--accent-yellow)">⟳ Extracting text from ${escapeHtml(file.name)}...</span>`;
@@ -386,29 +413,55 @@ async function readJDFile(file) {
     let text = '';
 
     if (isPDF) {
+      // ---- PDF Extraction ----
+      // Reuses our existing extractTextFromPDF() from pdf-parser.js.
+      // Under the hood, PDF.js parses the binary PDF structure and extracts
+      // text content items from each page, preserving rough line structure.
       text = await extractTextFromPDF(file);
+
     } else if (isDocx) {
-      // Extract raw text from DOCX (a ZIP of XML files)
+      // ---- DOCX Extraction ----
+      // STUDY NOTE: A .docx file is actually a ZIP archive containing XML files.
+      // The main document content lives at 'word/document.xml' inside the ZIP.
+      //
+      // We use JSZip (dynamically imported to avoid loading it on page load)
+      // to unzip the file in the browser, then extract the XML and strip all
+      // XML tags to get plain text.
+      //
+      // Dynamic import syntax: `await import('jszip')` loads the module lazily,
+      // meaning JSZip's ~90KB bundle is only downloaded when a user actually
+      // uploads a DOCX file — not on every page load. This is called "code splitting".
       const arrayBuffer = await file.arrayBuffer();
       const JSZip = (await import('jszip')).default;
       const zip = await JSZip.loadAsync(arrayBuffer);
       const docXml = await zip.file('word/document.xml')?.async('string');
       if (docXml) {
-        // Strip XML tags to get plain text
+        // Strip all XML tags (e.g., <w:t>, <w:r>, <w:p>) to get clean text.
+        // The regex /<[^>]+>/g matches any XML/HTML tag and replaces it with a space.
+        // Then we collapse multiple whitespace characters into single spaces.
         text = docXml.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim();
       } else {
         throw new Error('Could not find document.xml inside the DOCX file.');
       }
+
     } else {
-      // Plain text / RTF
+      // ---- Plain Text / RTF ----
+      // The File API's .text() method reads the file as a UTF-8 string.
+      // For RTF files, the formatting codes (like {\rtf1, \b, \par) remain
+      // in the text, but the JD content is still readable and usable.
       text = await file.text();
     }
 
+    // ---- Success: Populate the JD textarea with extracted text ----
+    // This allows the user to review, edit, or append to the extracted text
+    // before running the tailoring pipeline.
     el.jdInputTextarea.value = text;
     state.jdInput = text;
     el.jdDropZone.style.borderColor = 'var(--accent-cyan)';
     if (dropText) dropText.innerHTML = `✓ Loaded: <strong>${escapeHtml(file.name)}</strong> (${(file.size / 1024).toFixed(1)} KB)`;
+
   } catch (err) {
+    // ---- Error: Show a red error message in the drop zone ----
     console.error('JD file read failed:', err);
     el.jdDropZone.style.borderColor = 'var(--accent-red)';
     if (dropText) dropText.innerHTML = `<span style="color:var(--accent-red)">✕ Failed to read: ${escapeHtml(err.message)}</span>`;
