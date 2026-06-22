@@ -98,6 +98,10 @@ const el = {
   latexInputTextarea: $('latex-input'),
   jdInputTextarea: $('jd-input'),
 
+  // JD file upload
+  jdDropZone: $('jd-drop-zone'),
+  jdFileInput: $('jd-file-input'),
+
   // Controls
   generationModeSelect: $('generation-mode'),
   tailorModeSelect: $('tailor-mode'),
@@ -211,6 +215,15 @@ function setupEventListeners() {
   ['dragenter', 'dragover'].forEach(evt => el.dropZone.addEventListener(evt, e => { e.preventDefault(); el.dropZone.classList.add('dragover'); }));
   ['dragleave', 'drop'].forEach(evt => el.dropZone.addEventListener(evt, e => { e.preventDefault(); el.dropZone.classList.remove('dragover'); }));
   el.dropZone.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if (f) readFile(f); });
+
+  // JD file drag & drop
+  if (el.jdDropZone) {
+    el.jdDropZone.addEventListener('click', () => el.jdFileInput.click());
+    el.jdFileInput.addEventListener('change', e => { if (e.target.files[0]) readJDFile(e.target.files[0]); });
+    ['dragenter', 'dragover'].forEach(evt => el.jdDropZone.addEventListener(evt, e => { e.preventDefault(); el.jdDropZone.classList.add('dragover'); }));
+    ['dragleave', 'drop'].forEach(evt => el.jdDropZone.addEventListener(evt, e => { e.preventDefault(); el.jdDropZone.classList.remove('dragover'); }));
+    el.jdDropZone.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if (f) readJDFile(f); });
+  }
 
   // Protected section chips
   el.protectedChips.forEach(chip => {
@@ -348,6 +361,57 @@ async function readFile(file) {
     console.error('Resume upload/parse failed:', err);
     el.dropZone.style.borderColor = 'var(--accent-red)';
     if (dropText) dropText.innerHTML = `<span style="color:var(--accent-red)">✕ Upload/parse failed: ${escapeHtml(err.message)}</span>`;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// JD File handling
+// ---------------------------------------------------------------------------
+async function readJDFile(file) {
+  const name = file.name.toLowerCase();
+  const isPDF = name.endsWith('.pdf');
+  const isTxt = name.endsWith('.txt') || name.endsWith('.rtf');
+  const isDocx = name.endsWith('.docx') || name.endsWith('.doc');
+
+  if (!isPDF && !isTxt && !isDocx) {
+    alert('Supported formats: .pdf, .docx, .txt, .rtf');
+    return;
+  }
+
+  const dropText = el.jdDropZone.querySelector('.drop-text');
+  el.jdDropZone.style.borderColor = 'var(--accent-yellow)';
+  if (dropText) dropText.innerHTML = `<span style="color:var(--accent-yellow)">⟳ Extracting text from ${escapeHtml(file.name)}...</span>`;
+
+  try {
+    let text = '';
+
+    if (isPDF) {
+      text = await extractTextFromPDF(file);
+    } else if (isDocx) {
+      // Extract raw text from DOCX (a ZIP of XML files)
+      const arrayBuffer = await file.arrayBuffer();
+      const JSZip = (await import('jszip')).default;
+      const zip = await JSZip.loadAsync(arrayBuffer);
+      const docXml = await zip.file('word/document.xml')?.async('string');
+      if (docXml) {
+        // Strip XML tags to get plain text
+        text = docXml.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim();
+      } else {
+        throw new Error('Could not find document.xml inside the DOCX file.');
+      }
+    } else {
+      // Plain text / RTF
+      text = await file.text();
+    }
+
+    el.jdInputTextarea.value = text;
+    state.jdInput = text;
+    el.jdDropZone.style.borderColor = 'var(--accent-cyan)';
+    if (dropText) dropText.innerHTML = `✓ Loaded: <strong>${escapeHtml(file.name)}</strong> (${(file.size / 1024).toFixed(1)} KB)`;
+  } catch (err) {
+    console.error('JD file read failed:', err);
+    el.jdDropZone.style.borderColor = 'var(--accent-red)';
+    if (dropText) dropText.innerHTML = `<span style="color:var(--accent-red)">✕ Failed to read: ${escapeHtml(err.message)}</span>`;
   }
 }
 
