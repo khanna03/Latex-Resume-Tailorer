@@ -35,11 +35,12 @@ function computePreservationScore(originalLatex, tailoredLatex) {
   const origChars = originalLatex.length;
   const tailChars = tailoredLatex.length;
 
-  // Penalize large structural divergence (line count change)
+  // Penalize large structural divergence (line count change). E.g., if it drops half the resume, it's bad.
   const linePctChange = Math.abs(origLines - tailLines) / origLines;
-  // Penalize large content divergence
+  // Penalize large content divergence (character count change).
   const charPctChange = Math.abs(origChars - tailChars) / origChars;
 
+  // Start at 100, subtract weighted penalties. Math.max(0, ...) ensures score never goes negative.
   const score = Math.max(0, 100 - (linePctChange * 40 + charPctChange * 30));
   return Math.round(score);
 }
@@ -82,11 +83,14 @@ function scoreCandidate(originalLatex, candidate, jdAnalysis) {
   const preservationScore = computePreservationScore(originalLatex, candidate.latex);
   const changeCount = countChangedBullets(originalLatex, candidate.latex);
 
-  // Changes score: reward meaningful changes up to ~15 bullets, penalize excessive changes
+  // Changes score: reward meaningful changes up to ~15 bullets, penalize excessive changes.
+  // This ensures the AI doesn't just rewrite the entire resume unnecessarily (hallucination risk),
+  // but also doesn't just return the original resume unchanged (zero value).
   const changesScore = Math.min(100, changeCount * 8) - Math.max(0, (changeCount - 15) * 5);
   const normalizedChanges = Math.max(0, Math.min(100, changesScore));
 
-  // Composite: ATS is weighted highest
+  // Composite: ATS is weighted highest (60%) because getting past the filter is the primary goal.
+  // Meaningful changes are weighted 25%, and structural preservation 15%.
   const totalScore = Math.round(
     atsScore * 0.60 +
     normalizedChanges * 0.25 +

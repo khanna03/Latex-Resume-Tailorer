@@ -123,7 +123,9 @@ def reconstruct_section_content(original_section: Dict[str, Any], new_bullet_tex
         replacements.append((rel_start, rel_end, new_raw))
 
     # Sort replacements in reverse order of relative offsets.
-    # This prevents early character splices from altering index positions of later splices!
+    # CRITICAL: This prevents early character splices from altering index positions of later splices!
+    # If we started at the top and replaced a 10-char bullet with a 50-char bullet, 
+    # all subsequent offsets for bullets below it would be off by 40 chars.
     replacements.sort(key=lambda x: x[0], reverse=True)
 
     result = original_section.get("rawContent", "")
@@ -584,7 +586,9 @@ def rank_candidates(original_latex: str, candidates: List[Dict[str, Any]], jd_an
         pres_score = compute_preservation_score(original_latex, c["latex"])
         change_count = count_changed_bullets(original_latex, c["latex"])
 
-        # Changes density curve: rewards edits up to ~15 bullets, penalizes extreme rewrites
+        # Changes density curve: rewards edits up to ~15 bullets, penalizes extreme rewrites.
+        # This prevents the AI from generating a completely different resume that loses the 
+        # candidate's original voice, but encourages it to actually do the tailoring work.
         changes_score = min(100, change_count * 8) - max(0, (change_count - 15) * 5)
         norm_changes = max(0, min(100, changes_score))
 

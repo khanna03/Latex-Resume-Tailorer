@@ -225,8 +225,8 @@ async def upload_resume(
         
     elif filename.endswith(".pdf"):
         # PDF Multimodal Conversion Flow
-        api_key = x_api_key if x_api_key and x_api_key.startswith("AIza") else settings.GEMINI_API_KEY
-        model_name = x_ai_model if x_ai_model and x_ai_model.startswith("gemini-") else settings.GEMINI_MODEL
+        api_key = x_api_key.strip() if x_api_key else settings.GEMINI_API_KEY
+        model_name = x_ai_model.strip() if x_ai_model else settings.GEMINI_MODEL
         
         if not api_key:
             raise HTTPException(

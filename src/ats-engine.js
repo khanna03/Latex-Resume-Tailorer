@@ -60,7 +60,7 @@ function normalize(str) {
 function keywordFound(keyword, normalizedResumeText) {
   const normKw = normalize(keyword);
   if (!normKw) return false;
-  // Escape regex metacharacters (important for C++, C#, .NET, etc.)
+  // Escape regex metacharacters so things like "C++" become "C\+\+" instead of failing
   const escaped = normKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // Word-boundary aware, allows comma/semicolon/paren as delimiters
   const re = new RegExp(`(?:^|\\s|[,;(])${escaped}(?:$|\\s|[,;)])`, 'i');
@@ -133,7 +133,8 @@ function compositeScore(req, pref, soft, ats) {
  * @returns {{ min: number, max: number }}
  */
 function uncertaintyBand(score) {
-  // ±9 points near the middle, ±5 near extremes
+  // We assume moderate scores (20-80) have more uncertainty (±9 pts) because missing a few keywords swings the score wildly.
+  // Extremely low or high scores are mathematically more certain (±5 pts).
   const halfBand = score > 20 && score < 80 ? 9 : 5;
   return {
     min: Math.max(0,   score - halfBand),
@@ -169,8 +170,9 @@ export function computeATSScore(resumePlainText, jdAnalysis) {
   const score  = compositeScore(reqCov, prefCov, softCov, atsCov);
   const { min: scoreMin, max: scoreMax } = uncertaintyBand(score);
 
-  // Skill gaps = missing required + missing ATS keywords (deduplicated), top 10
+  // Combine missing required skills and missing ATS priority keywords into a single Set to remove duplicates
   const skillGapSet = new Set([...required.missing, ...ats.missing]);
+  // Only return the top 10 gaps so we don't overwhelm the user
   const skillGaps   = [...skillGapSet].slice(0, 10);
 
   const methodNote =

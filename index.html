@@ -68,7 +68,7 @@
             </div>
             <div class="pdf-info-note">
               <span class="pdf-badge">PDF</span>
-              PDFs are automatically extracted and converted to LaTeX via Gemini — requires API key
+              PDFs are automatically extracted and converted to LaTeX via Gemini
             </div>
             <div class="editor-container">
               <div class="editor-label">LaTeX Code Editor</div>
@@ -279,7 +279,12 @@
     <!-- ===== FEEDBACK WIDGET ===== -->
     <div id="feedback-widget" class="feedback-widget hidden">
       <div class="feedback-inner">
-        <div class="feedback-title">Rate this output</div>
+        <div class="feedback-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div class="feedback-title" style="margin-bottom: 0;">Rate this output</div>
+          <button id="close-feedback-btn" class="icon-btn-close" style="padding: 2px;" title="Dismiss">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
         <div class="feedback-row">
           <div class="thumb-row">
             <button id="thumb-up" class="thumb-btn" title="Good output">👍</button>
@@ -314,12 +319,12 @@
           <p class="drawer-info-text">Configure your API connection. The key is stored locally in your browser only.</p>
 
           <div class="drawer-field">
-            <label for="api-key-input">AI API Key</label>
+            <label for="api-key-input">AI API Key (Optional)</label>
             <div class="password-input-wrapper">
-              <input type="password" id="api-key-input" placeholder="Paste your key here (sk-ant-..., sk-..., AIza...)">
+              <input type="password" id="api-key-input" placeholder="Optional: Uses server default key if empty">
               <button id="toggle-key-visibility" class="flat-btn" type="button">Show</button>
             </div>
-            <span class="field-hint">Supports <strong>Gemini, OpenAI, or Anthropic</strong> keys. Key never leaves your session.</span>
+            <span class="field-hint">Leave blank to use the server's default key. Supports <strong>Gemini, OpenAI, or Anthropic</strong> if you provide your own.</span>
           </div>
 
           <div class="drawer-field">

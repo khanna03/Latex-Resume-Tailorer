@@ -110,6 +110,7 @@ For each section, return updated bullet text. Rules:
 5. Bullets should be concise (under 25 words ideal).
 6. If a bullet is already well-aligned, return it unchanged.
 7. Return plain text only — NO LaTeX commands in your output.
+# (Study note: Returning plain text ensures the LLM doesn't accidentally break LaTeX syntax)
 
 Respond ONLY with this JSON schema:
 {{
@@ -301,10 +302,14 @@ def run_tailoring_pipeline(
             )
             
             # Splicing modifications back into LaTeX using offset tracker
+            # This is the crucial step: we don't ask the LLM to write LaTeX. 
+            # We take its plain-text JSON output and use Python offset arithmetic to 
+            # safely inject the updated words into the original LaTeX document.
             mod_map = {sec["id"]: {"bullets": sec["bullets"]} for sec in gpt_res.get("sections", [])}
             reconstructed = reconstruct_latex(ast, mod_map, locked_set)
             
             # Locked sections revert enforcement
+            # A secondary check to ensure the LLM didn't illegally modify protected sections
             final_reconstructed, reverted = validate_locked_sections(ast, reconstructed, locked_set)
             
             # Fabrication NER pass

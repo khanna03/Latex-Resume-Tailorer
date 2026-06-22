@@ -96,7 +96,9 @@ function reconstructSectionContent(originalSection, newBulletTexts) {
     replacements.push({ relStart, relEnd, newRaw });
   }
 
-  // Apply replacements in REVERSE order to preserve earlier offsets
+  // Apply replacements in REVERSE order to preserve earlier offsets.
+  // If we applied them forwards, modifying the string would invalidate the start/end offsets
+  // of all subsequent bullets in the section.
   replacements.sort((a, b) => b.relStart - a.relStart);
 
   let result = originalSection.rawContent;
@@ -144,7 +146,8 @@ export function reconstructLatex(originalAst, sectionModifications, lockedSectio
   let result = originalAst.rawFull;
 
   // Process sections in reverse offset order so earlier offsets stay valid
-  // after each splice.
+  // after each splice. If we mutated the start of the document first, all AST offsets
+  // for later sections would be incorrect.
   const sectionsToProcess = [...originalAst.sections]
     .filter(s => {
       if (lockedSectionIds.has(s.id) || s.locked) return false;

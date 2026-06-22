@@ -59,6 +59,8 @@ export function computeSemanticDiff(originalLatex, tailoredLatex) {
   const origAst = parseLatex(originalLatex);
   const tailoredAst = parseLatex(tailoredLatex);
 
+  // We map sections by their title (lowercased) so we can pair up the original section with the new section
+  // regardless of where it moved in the document order.
   const origMap = new Map(origAst.sections.map(s => [s.title.toLowerCase(), s]));
   const tailMap = new Map(tailoredAst.sections.map(s => [s.title.toLowerCase(), s]));
 
@@ -102,6 +104,8 @@ export function computeSemanticDiff(originalLatex, tailoredLatex) {
     }
 
     // Both exist — diff bullets
+    // We iterate through bullets by index. If the section was deeply rewritten and bullets reordered,
+    // this index-based approach will show them as 'modified', which is visually acceptable.
     const bulletDiffs = [];
     const maxLen = Math.max(origSec.bullets.length, tailSec.bullets.length);
     let changedCount = 0;

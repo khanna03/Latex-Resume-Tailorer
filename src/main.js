@@ -134,6 +134,7 @@ const el = {
 
   // Feedback widget
   feedbackWidget: $('feedback-widget'),
+  closeFeedbackBtn: $('close-feedback-btn'),
   thumbUp: $('thumb-up'),
   thumbDown: $('thumb-down'),
   starBtns: $qa('.star-btn'),
@@ -238,6 +239,7 @@ function setupEventListeners() {
   el.exportDatasetBtn?.addEventListener('click', exportDataset);
 
   // Feedback
+  el.closeFeedbackBtn?.addEventListener('click', () => el.feedbackWidget.classList.add('hidden'));
   el.thumbUp?.addEventListener('click', () => setThumb('up'));
   el.thumbDown?.addEventListener('click', () => setThumb('down'));
   el.starBtns?.forEach(btn => {
@@ -397,7 +399,7 @@ function saveSettings() {
   localStorage.setItem('user_api_key', state.apiKey);
   localStorage.setItem('user_ai_model', state.model);
   closeSettings();
-  updateStatusBadge(state.apiKey ? 'ready' : 'error', state.apiKey ? '' : 'API Key Missing');
+  updateStatusBadge('ready', 'Connected');
 }
 
 // ---------------------------------------------------------------------------
@@ -1118,6 +1120,11 @@ async function handleFeedbackSubmit() {
     el.feedbackWidget?.appendChild(successMsg);
 
     updateFeedbackCount();
+    
+    // Auto-hide after short delay
+    setTimeout(() => {
+      el.feedbackWidget?.classList.add('hidden');
+    }, 2000);
   } catch (err) {
     console.error('Feedback submission failed:', err);
     alert(`Failed to submit feedback: ${err.message}`);

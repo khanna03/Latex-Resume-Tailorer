@@ -172,7 +172,8 @@ export function checkFabrication(originalText, generatedText) {
   }
   for (const term of generatedTechMatches) {
     if (!origNorm.includes(term)) {
-      // Find context snippet in generated text
+      // We grab a snippet of text surrounding the fabricated term so the UI can highlight context.
+      // Math.max ensures we don't go out of bounds if the term is near the start of the document.
       const idx     = generatedText.toLowerCase().indexOf(term);
       const context = generatedText.substring(Math.max(0, idx - 30), idx + term.length + 30).trim();
       flagged.push({ entity: term, type: 'tech', context });
@@ -182,6 +183,10 @@ export function checkFabrication(originalText, generatedText) {
   // --- 2. Metric claims ---
   const origMetrics = new Set(extractMetrics(originalText).map(s => s.toLowerCase()));
   const genMetrics  = extractMetrics(generatedText);
+  // Here we check if the metric is entirely absent from the original resume.
+  // We check two things:
+  // 1. Is it not in the set of exact metrics extracted from the original?
+  // 2. Is it not anywhere in the raw text? (To handle slight formatting differences).
   for (const metric of genMetrics) {
     if (!origMetrics.has(metric.toLowerCase()) && !origNorm.includes(metric.toLowerCase())) {
       const idx     = generatedText.toLowerCase().indexOf(metric.toLowerCase());
