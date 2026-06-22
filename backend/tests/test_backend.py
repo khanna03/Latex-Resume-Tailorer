@@ -390,3 +390,117 @@ def test_rank_candidates_returns_empty_for_all_invalid():
     ranked = rank_candidates(LOW_ATS_LATEX, [None, {"mode": "x", "latex": ""}], JD)
     assert ranked == []
 
+# --------------------------------------------------------------------------
+# 8. Phase 4 — ML Dataset Generation & Export Tests
+# --------------------------------------------------------------------------
+
+from unittest.mock import MagicMock
+from datetime import datetime
+import asyncio
+from backend.routes.feedback import export_ml_dataset, submit_user_feedback
+from backend.schemas import UserOut, FeedbackCreate
+from backend.models import Feedback, Version, Resume, AuditLog
+
+def test_export_ml_dataset_empty():
+    """Phase 4: Exporting an empty dataset returns a valid JSONL stream."""
+    mock_db = MagicMock()
+    mock_db.query.return_value.all.return_value = []
+    
+    mock_user = UserOut(id=1, email="test@example.com", is_active=True, created_at=datetime.utcnow())
+    response = export_ml_dataset(current_user=mock_user, db=mock_db)
+    
+    assert response.media_type == "application/x-jsonlines"
+    
+    async def consume_stream(stream):
+        return b"".join([chunk async for chunk in stream])
+        
+    body = asyncio.run(consume_stream(response.body_iterator))
+    assert body == b""
+
+def test_export_ml_dataset_with_data():
+    """Phase 4: Exporting dataset with feedback serializes correctly to JSONL."""
+    mock_db = MagicMock()
+    
+    mock_feedback = Feedback(version_id=10, score_stars=5, thumbs_direction="up", comments="Great")
+    mock_version = Version(id=10, resume_id=20, job_title="SWE", tailored_latex="new_latex", ats_score_before=50.0, ats_score_after=90.0, mode="aggressive")
+    mock_resume = Resume(id=20, raw_latex="old_latex")
+    
+    def mock_query(model):
+        query_mock = MagicMock()
+        if model == Feedback:
+            query_mock.all.return_value = [mock_feedback]
+        elif model == Version:
+            query_mock.filter.return_value.first.return_value = mock_version
+        elif model == Resume:
+            query_mock.filter.return_value.first.return_value = mock_resume
+        return query_mock
+        
+    mock_db.query.side_effect = mock_query
+    
+    mock_user = UserOut(id=1, email="test@example.com", is_active=True, created_at=datetime.utcnow())
+    response = export_ml_dataset(current_user=mock_user, db=mock_db)
+    
+    async def consume_stream(stream):
+        return b"".join([chunk async for chunk in stream])
+        
+    body = asyncio.run(consume_stream(response.body_iterator)).decode("utf-8")
+    assert "old_latex" in body
+    assert "new_latex" in body
+    assert "SWE" in body
+    assert "aggressive" in body
+    assert "Great" in body
+
+def test_submit_user_feedback():
+    """Phase 4: Submitting feedback saves to DB and creates an audit log."""
+    mock_db = MagicMock()
+    mock_version = Version(id=10)
+    
+    def mock_query(model):
+        query_mock = MagicMock()
+        if model == Version:
+            query_mock.filter.return_value.first.return_value = mock_version
+        return query_mock
+    
+    mock_db.query.side_effect = mock_query
+    
+    mock_user = UserOut(id=1, email="test@example.com", is_active=True, created_at=datetime.utcnow())
+    payload = FeedbackCreate(version_id=10, score_stars=4, thumbs_direction="up", comments="Good")
+    
+    result = submit_user_feedback(payload=payload, current_user=mock_user, db=mock_db)
+    
+    assert result.score_stars == 4
+    assert result.thumbs_direction == "up"
+    assert result.comments == "Good"
+    
+    assert mock_db.add.call_count == 2
+    assert mock_db.commit.call_count == 2
+
+# --------------------------------------------------------------------------
+# 9. Phase 5/6 — Local Model Routing Tests
+# --------------------------------------------------------------------------
+from backend.llm_provider import generate_json_content
+from backend.config import settings
+from unittest.mock import patch
+
+@patch("backend.llm_provider.OpenAI")
+def test_generate_json_content_local_routing(mock_openai):
+    """Phase 5/6: Local LLM base URL properly routes to OpenAI client."""
+    settings.LOCAL_LLM_BASE_URL = "http://localhost:11434/v1"
+    
+    mock_client = MagicMock()
+    mock_openai.return_value = mock_client
+    mock_client.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='{"tailored_latex": "test"}'))]
+    )
+    
+    result = generate_json_content(api_key="", model_name="unsloth/llama-3-8b", prompt="Hello")
+    
+    mock_openai.assert_called_once_with(api_key="local", base_url="http://localhost:11434/v1")
+    
+    mock_client.chat.completions.create.assert_called_once()
+    call_kwargs = mock_client.chat.completions.create.call_args[1]
+    assert call_kwargs["model"] == "unsloth/llama-3-8b"
+    assert result == {"tailored_latex": "test"}
+    
+    settings.LOCAL_LLM_BASE_URL = None
+
